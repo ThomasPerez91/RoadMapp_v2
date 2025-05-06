@@ -37,6 +37,14 @@ export default class AuthController {
     try {
       const socialUser = await social.user()
 
+      const existingUser = await User.findBy('email', socialUser.email)
+
+      if (existingUser && existingUser.oauthId !== socialUser.id) {
+        return response.unauthorized(
+          `This email is already linked to a different provider. Please use the correct one.`
+        )
+      }
+
       const user = await User.updateOrCreate(
         { email: socialUser.email },
         {
@@ -53,10 +61,8 @@ export default class AuthController {
         }
       )
 
-      // 🔐 Connecte l'utilisateur dans la session
       await auth.use('web').login(user)
 
-      // 🔁 Redirection vers la home propre
       return response.redirect().toPath('/')
     } catch (error) {
       console.error('OAuth callback error:', error)
