@@ -2,6 +2,7 @@ import { DateTime } from 'luxon'
 import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import Address from '#models/address'
+import Travel from '#models/travel'
 
 export default class User extends BaseModel {
   @column({ isPrimary: true, serializeAs: null })
@@ -48,4 +49,7 @@ export default class User extends BaseModel {
 
   @hasMany(() => Address)
   declare addresses: HasMany<typeof Address>
+
+  @hasMany(() => Travel)
+  declare travels: HasMany<typeof Travel>
 }
