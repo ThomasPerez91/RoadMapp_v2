@@ -3,6 +3,7 @@ import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import Address from '#models/address'
 import Travel from '#models/travel'
+import Leg from '#models/leg'
 
 export default class User extends BaseModel {
   @column({ isPrimary: true, serializeAs: null })
@@ -52,4 +53,10 @@ export default class User extends BaseModel {
 
   @hasMany(() => Travel)
   declare travels: HasMany<typeof Travel>
+
+  @hasMany(() => Leg, { foreignKey: 'startAddressId' })
+  declare departures: HasMany<typeof Leg>
+
+  @hasMany(() => Leg, { foreignKey: 'endAddressId' })
+  declare arrivals: HasMany<typeof Leg>
 }

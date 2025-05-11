@@ -14,7 +14,7 @@ export default class extends BaseSchema {
         .integer('userId')
         .notNullable()
         .unsigned()
-        .references('oauth_id')
+        .references('id')
         .inTable('users')
         .onDelete('CASCADE')
         .onUpdate('CASCADE')
