@@ -39,7 +39,7 @@ export default class AuthController {
 
       const existingUser = await User.findBy('email', socialUser.email)
 
-      if (existingUser && existingUser.oauthId !== socialUser.id) {
+      if (existingUser && existingUser.oauthId !== String(socialUser.id)) {
         return response.unauthorized(
           `This email is already linked to a different provider. Please use the correct one.`
         )
@@ -72,7 +72,6 @@ export default class AuthController {
 
   public async logout({ auth, response }: HttpContext) {
     await auth.use('web').logout()
-    console.log('User logged out')
     return response.redirect().toPath('/')
   }
 }
