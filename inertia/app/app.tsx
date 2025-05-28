@@ -1,28 +1,33 @@
 /// <reference path="../../adonisrc.ts" />
 /// <reference path="../../config/inertia.ts" />
 
-import '../css/app.css';
+import '../css/app.css'
+import '@mantine/core/styles.css'
 import { hydrateRoot } from 'react-dom/client'
-import { createInertiaApp } from '@inertiajs/react';
+import { createInertiaApp } from '@inertiajs/react'
 import { resolvePageComponent } from '@adonisjs/inertia/helpers'
+import DefaultLayout from '~/layouts/defaut_layout'
 
-const appName = import.meta.env.VITE_APP_NAME || 'AdonisJS'
+const appName = import.meta.env.VITE_APP_NAME || 'RoadMapp'
 
 createInertiaApp({
-  progress: { color: '#5468FF' },
+  progress: { color: 'var(--app-gradient)', delay: 100 },
 
   title: (title) => `${title} - ${appName}`,
 
-  resolve: (name) => {
-    return resolvePageComponent(
+  resolve: async (name) => {
+    const currentPage: any = await resolvePageComponent(
       `../pages/${name}.tsx`,
-      import.meta.glob('../pages/**/*.tsx'),
+      import.meta.glob('../pages/**/*.tsx')
     )
+
+    currentPage.default.layout =
+      currentPage.default.layout || ((p: any) => <DefaultLayout children={p} />)
+
+    return currentPage
   },
 
   setup({ el, App, props }) {
-    
     hydrateRoot(el, <App {...props} />)
-    
   },
-});
+})

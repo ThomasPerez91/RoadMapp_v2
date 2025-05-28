@@ -1,10 +1,51 @@
+@import './fonts/poppins/import.css';
+
 * {
-  margin: 0;
-  padding: 0;
+  scroll-behavior: smooth !important;
+  scroll-margin-top: rem(60);
 }
 
-html,
-body {
-  height: 100%;
-  width: 100%;
+/* Fix nprogress position */
+#nprogress {
+  position: relative;
+  z-index: 9999999;
+}
+
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+:root {
+  --app-gradient: linear-gradient(-45deg, #bd34fe, #47caff);
+}
+
+/* For light mode */
+:root[data-mantine-color-scheme='light'] {
+  --mantine-color-body: #f0eef6 !important;
+}
+
+/* For dark mode */
+:root[data-mantine-color-scheme='dark'] {
+  --mantine-color-body: #1b1b1f !important;
+}
+
+.bg-image {
+  --img-url: '';
+  background-image: var(--img-url);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.bg-image #app {
+  backdrop-filter: brightness(0.2) blur(5px);
+}
+
+.gradient-text {
+  background: var(--app-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
