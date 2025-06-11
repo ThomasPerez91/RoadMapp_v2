@@ -1,0 +1,32 @@
+.navbar {
+  z-index: 9;
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: rem(60);
+  background-color: light-dark(var(--mantine-color-gray-0), #000a1c);
+  padding-inline: var(--mantine-spacing-lg);
+  transition: transform 400ms ease;
+  backdrop-filter: blur(0.5rem);
+  overflow: hidden;
+}
+
+.navbar__content {
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+.navbar__content > div:last-child {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.breadcrumbWrapper {
+  padding-inline: var(--mantine-spacing-lg);
+}
+
+.breadcrumbs {
+  max-width: 100%;
+  margin-inline: auto;
+}
