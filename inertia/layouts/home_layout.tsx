@@ -2,15 +2,15 @@ import { Box, rem } from '@mantine/core'
 import { PropsWithChildren } from 'react'
 import { BaseLayout } from './base_layout'
 import { FlashMessages } from '~/components/flash_messages'
-import { Navbar } from '~/components/generals/navbar/navbar'
+import { HomeNavbar } from '~/components/generals/navbars/home_navbar/home_navbar'
 
-const DefaultLayout = ({ children }: PropsWithChildren) => (
+const HomeLayout = ({ children }: PropsWithChildren) => (
   <BaseLayout>
     <Layout>{children}</Layout>
   </BaseLayout>
 )
 
-export default DefaultLayout
+export default HomeLayout
 
 const LAYOUT_WIDTH = '1500px'
 const Layout = ({ children }: PropsWithChildren) => (
@@ -19,7 +19,7 @@ const Layout = ({ children }: PropsWithChildren) => (
     <FlashMessages />
 
     {/* Nav */}
-    <Navbar width={LAYOUT_WIDTH} />
+    <HomeNavbar width={LAYOUT_WIDTH} />
 
     {/* Page content */}
     <Box

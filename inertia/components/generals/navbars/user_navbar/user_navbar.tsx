@@ -1,15 +1,28 @@
-import { Box, Burger, Drawer, Flex, Group, rem, Stack, useMantineTheme } from '@mantine/core'
+import {
+  Avatar,
+  Box,
+  Burger,
+  Drawer,
+  Flex,
+  Group,
+  rem,
+  Stack,
+  Title,
+  useMantineTheme,
+} from '@mantine/core'
 import { useDisclosure, useHeadroom, useMediaQuery } from '@mantine/hooks'
 import { useEffect } from 'react'
 import classes from './navbar.module.css'
-import { Logo } from '../logo/logo'
-import { NavbarAuth } from '~/components/auth/navbar_auth'
+import { Logo } from '../../logo/logo'
+import { UserNavbarLinks } from '~/components/links/user_navbar_links'
+import authUser from '~/hooks/auth'
 
 interface NavbarProps {
   width: string
 }
 
-export function Navbar({ width }: NavbarProps) {
+export const UserNavbar = ({ width }: NavbarProps) => {
+  const user = authUser()
   const theme = useMantineTheme()
   const [opened, handler] = useDisclosure(false)
   const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`, false)
@@ -39,9 +52,17 @@ export function Navbar({ width }: NavbarProps) {
           </Group>
 
           {!isMobile && (
-            <Group>
-              <NavbarAuth />
-            </Group>
+            <>
+              <Group>
+                <UserNavbarLinks />
+              </Group>
+              <Group gap="xs">
+                <Title order={5} style={{ color: 'var(--mantine-color-sand-12)', fontWeight: 600 }}>
+                  {user.user.name}
+                </Title>
+                <Avatar src={user.user.avatarUrl} alt={user.user.name} radius="xl" size="md" />
+              </Group>
+            </>
           )}
         </Group>
 
@@ -62,7 +83,7 @@ export function Navbar({ width }: NavbarProps) {
             </Drawer.Header>
             <Drawer.Body>
               <Flex direction="column" gap="md">
-                <NavbarAuth />
+                <UserNavbarLinks isMobile />
               </Flex>
             </Drawer.Body>
           </Drawer.Content>

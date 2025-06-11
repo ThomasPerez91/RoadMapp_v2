@@ -12,6 +12,9 @@ export default class User extends BaseModel {
   @column({ serializeAs: null })
   declare oauthId: string
 
+  @column({ serializeAs: 'oauthProvider' })
+  declare oauthProvider: string
+
   @column({ serializeAs: 'email' })
   declare email: string
 

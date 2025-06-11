@@ -30,3 +30,8 @@
   max-width: 100%;
   margin-inline: auto;
 }
+
+.drawer__body {
+  padding: var(--mantine-spacing-md);
+  height: calc(100vh - rem(60));
+}

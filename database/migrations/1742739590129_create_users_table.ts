@@ -7,6 +7,7 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id').notNullable()
       table.string('oauth_id').notNullable()
+      table.string('oauth_provider').notNullable()
       table.string('email').notNullable().unique()
       table.string('email_verification').notNullable()
       table.string('name').notNullable()

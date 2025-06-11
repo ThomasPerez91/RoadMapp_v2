@@ -49,6 +49,7 @@ export default class AuthController {
         { email: socialUser.email },
         {
           oauthId: socialUser.id,
+          oauthProvider: provider,
           name: socialUser.name,
           nickname: socialUser.nickName,
           email: socialUser.email,
