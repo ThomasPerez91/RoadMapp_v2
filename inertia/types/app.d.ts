@@ -17,6 +17,13 @@ export interface Address {
   checked: boolean
 }
 
+export interface Travel {
+  id: number
+  date: string
+  distance: number
+  distanceToString: string
+}
+
 export interface PaginationMeta {
   total: number
   perPage: number
