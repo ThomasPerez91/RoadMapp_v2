@@ -1,17 +1,30 @@
 import Address from '#models/address'
 import type { HttpContext } from '@adonisjs/core/http'
+import { addressToDto } from '#dtos/address'
+import {
+  createAddressValidator,
+  updateAddressValidator,
+} from '#validators/address'
 
 export default class AddressesController {
   /**
    * Display a list of addresses for the authenticated user
    */
-  async index({ inertia, auth }: HttpContext) {
+  async index({ inertia, auth, request }: HttpContext) {
     await auth.check()
     const user = auth.user!
 
-    const addresses = await Address.query().where('userId', user.id).orderBy('name', 'asc')
+    const page = request.input('page', 1)
 
-    return inertia.render('addresses/index', { addresses })
+    const addresses = await Address.query()
+      .where('userId', user.id)
+      .orderBy('name', 'asc')
+      .paginate(page, 25)
+
+    const { data, meta } = addresses.toJSON()
+    const addressesDto = data.map(addressToDto)
+
+    return inertia.render('addresses/index', { addresses: addressesDto, meta })
   }
 
   /**
@@ -28,7 +41,7 @@ export default class AddressesController {
     await auth.check()
     const user = auth.user!
 
-    const data = request.only(['name', 'address', 'postalCode', 'city', 'isHome']) // adapte ici
+    const data = await request.validateUsing(createAddressValidator)
 
     await Address.create({ ...data, userId: user.id })
 
@@ -47,7 +60,7 @@ export default class AddressesController {
       return response.unauthorized('Not allowed')
     }
 
-    return inertia.render('addresses/show', { address })
+    return inertia.render('addresses/show', { address: addressToDto(address) })
   }
 
   /**
@@ -62,7 +75,7 @@ export default class AddressesController {
       return response.unauthorized('Not allowed')
     }
 
-    return inertia.render('addresses/edit', { address })
+    return inertia.render('addresses/edit', { address: addressToDto(address) })
   }
 
   /**
@@ -77,7 +90,7 @@ export default class AddressesController {
       return response.unauthorized('Not allowed')
     }
 
-    const data = request.only(['street', 'city', 'zip', 'country']) // adapte ici
+    const data = await request.validateUsing(updateAddressValidator)
     address.merge(data)
     await address.save()
 
@@ -99,5 +112,31 @@ export default class AddressesController {
     await address.delete()
 
     return response.redirect().toPath('/addresses')
+  }
+
+  /**
+   * Search addresses for the authenticated user
+   */
+  async search({ request, auth }: HttpContext) {
+    await auth.check()
+    const user = auth.user!
+
+    const query = request.input('q', '').trim()
+    if (!query) {
+      return []
+    }
+
+    const term = `%${query}%`
+
+    const results = await Address.query()
+      .where('userId', user.id)
+      .andWhere((qb) => {
+        qb.orWhereILike('name', term)
+        qb.orWhereILike('address', term)
+        qb.orWhereILike('city', term)
+      })
+      .limit(10)
+
+    return results.map(addressToDto)
   }
 }

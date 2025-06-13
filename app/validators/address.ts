@@ -9,7 +9,6 @@ export const createAddressValidator = vine.compile(
     address: vine.string().trim().maxLength(255),
     postalCode: vine.string().trim().maxLength(255),
     city: vine.string().trim().maxLength(255),
-    userId: vine.number().positive(),
     isHome: vine.boolean().optional(),
   })
 )
@@ -23,5 +22,6 @@ export const updateAddressValidator = vine.compile(
     address: vine.string().trim().maxLength(255),
     postalCode: vine.string().trim().maxLength(255),
     city: vine.string().trim().maxLength(255),
+    isHome: vine.boolean().optional(),
   })
 )
