@@ -10,3 +10,12 @@ router.get('/api/:provider/redirect', [AuthController, 'redirect']).where('provi
 router.get('/callback/:provider', [AuthController, 'callback']).where('provider', /github|google/)
 
 router.get('/api/logout', [AuthController, 'logout'])
+
+router
+  .resource('addresses', () => import('#controllers/addresses_controller'))
+  .prefix('/api')
+  .middleware('*', [middleware.auth()])
+
+router
+  .get('/api/addresses/search', [() => import('#controllers/addresses_controller'), 'search'])
+  .middleware([middleware.auth()])
