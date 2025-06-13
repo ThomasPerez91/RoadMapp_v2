@@ -25,6 +25,12 @@ export default class Address extends BaseModel {
   @column()
   declare isHome: boolean
 
+  @column({ consume: (v) => Boolean(v), serialize: (v) => v })
+  declare isActive: boolean
+
+  @column({ consume: (v) => Boolean(v), serialize: (v) => v })
+  declare checked: boolean
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

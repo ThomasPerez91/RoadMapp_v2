@@ -13,6 +13,8 @@ export interface Address {
   postalCode: string
   city: string
   isHome: boolean
+  isActive: boolean
+  checked: boolean
 }
 
 export interface PaginationMeta {

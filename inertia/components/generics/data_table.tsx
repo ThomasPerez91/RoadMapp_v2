@@ -3,7 +3,7 @@ import { Table, UnstyledButton, Group } from '@mantine/core'
 import { IconArrowUp, IconArrowDown } from 'react-icons/tb'
 
 export interface Column<T> {
-  key: keyof T
+  key: keyof T | string
   label: string
   sortFn?: (a: T, b: T) => number
   render?: (row: T) => React.ReactNode
@@ -15,10 +15,10 @@ interface DataTableProps<T> {
 }
 
 export function DataTable<T>({ columns, data }: DataTableProps<T>) {
-  const [sortKey, setSortKey] = useState<keyof T | null>(null)
+  const [sortKey, setSortKey] = useState<keyof T | string | null>(null)
   const [direction, setDirection] = useState<'asc' | 'desc'>('asc')
 
-  const setSort = (key: keyof T) => {
+  const setSort = (key: keyof T | string) => {
     if (sortKey === key) {
       setDirection(direction === 'asc' ? 'desc' : 'asc')
     } else {

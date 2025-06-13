@@ -5,6 +5,8 @@ export interface AddressDto {
   postalCode: string
   city: string
   isHome: boolean
+  isActive: boolean
+  checked: boolean
 }
 
 import type Address from '#models/address'
@@ -17,5 +19,7 @@ export function addressToDto(address: Address): AddressDto {
     postalCode: address.postalCode,
     city: address.city,
     isHome: address.isHome,
+    isActive: address.isActive,
+    checked: address.checked,
   }
 }

@@ -12,20 +12,25 @@ type FlashPageProps = PageProps & {
   } | null
 }
 
-export function FlashMessages() {
+interface FlashMessagesProps {
+  flash?: { type: FlashType; message: string } | null
+}
+
+export function FlashMessages({ flash }: FlashMessagesProps = {}) {
   const { props } = usePage<FlashPageProps>()
-  const [opened, setOpened] = useState<boolean>(!!props.flash)
+  const current = flash ?? props.flash
+  const [opened, setOpened] = useState<boolean>(!!current)
 
   useEffect(() => {
-    setOpened(!!props.flash)
-  }, [props.flash])
+    setOpened(!!current)
+  }, [current])
 
   return (
     opened && (
       <Notification
-        icon={getNotificationIcon(props.flash?.type)}
-        color={getNotificationColor(props.flash?.type)}
-        title={props.flash?.message}
+        icon={getNotificationIcon(current?.type)}
+        color={getNotificationColor(current?.type)}
+        title={current?.message}
         onClose={() => setOpened(false)}
       />
     )
