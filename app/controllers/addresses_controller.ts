@@ -40,12 +40,13 @@ export default class AddressesController {
   async store({ request, auth, response }: HttpContext) {
     await auth.check()
     const user = auth.user!
-
-    const data = await request.validateUsing(createAddressValidator)
-
-    await Address.create({ ...data, userId: user.id })
-
-    return response.redirect().toPath('/addresses/index')
+    try {
+      const data = await request.validateUsing(createAddressValidator)
+      const address = await Address.create({ ...data, userId: user.id })
+      return response.created(addressToDto(address))
+    } catch (error) {
+      return response.badRequest({ message: (error as Error).message })
+    }
   }
 
   /**
@@ -84,17 +85,20 @@ export default class AddressesController {
   async update({ params, request, auth, response }: HttpContext) {
     await auth.check()
     const user = auth.user!
+    try {
+      const address = await Address.find(params.id)
+      if (!address || address.userId !== user.id) {
+        return response.unauthorized('Not allowed')
+      }
 
-    const address = await Address.find(params.id)
-    if (!address || address.userId !== user.id) {
-      return response.unauthorized('Not allowed')
+      const data = await request.validateUsing(updateAddressValidator)
+      address.merge(data)
+      await address.save()
+
+      return response.ok(addressToDto(address))
+    } catch (error) {
+      return response.badRequest({ message: (error as Error).message })
     }
-
-    const data = await request.validateUsing(updateAddressValidator)
-    address.merge(data)
-    await address.save()
-
-    return response.redirect().toPath('/addresses')
   }
 
   /**
@@ -103,15 +107,18 @@ export default class AddressesController {
   async destroy({ params, auth, response }: HttpContext) {
     await auth.check()
     const user = auth.user!
+    try {
+      const address = await Address.find(params.id)
+      if (!address || address.userId !== user.id) {
+        return response.unauthorized('Not allowed')
+      }
 
-    const address = await Address.find(params.id)
-    if (!address || address.userId !== user.id) {
-      return response.unauthorized('Not allowed')
+      await address.delete()
+
+      return response.noContent()
+    } catch (error) {
+      return response.badRequest({ message: (error as Error).message })
     }
-
-    await address.delete()
-
-    return response.redirect().toPath('/addresses')
   }
 
   /**

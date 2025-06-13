@@ -19,6 +19,8 @@ export default class extends BaseSchema {
         .onDelete('CASCADE')
         .onUpdate('CASCADE')
       table.boolean('isHome').notNullable()
+      table.boolean('isActive').notNullable().defaultTo(true)
+      table.boolean('checked').notNullable().defaultTo(false)
       table.timestamp('created_at')
       table.timestamp('updated_at')
     })
