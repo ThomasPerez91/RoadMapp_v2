@@ -12,10 +12,14 @@ router.get('/callback/:provider', [AuthController, 'callback']).where('provider'
 router.get('/api/logout', [AuthController, 'logout'])
 
 router
-  .resource('addresses', () => import('#controllers/addresses_controller'))
-  .prefix('/api')
+  .resource('/api/addresses', () => import('#controllers/addresses_controller'))
   .middleware('*', [middleware.auth()])
 
 router
   .get('/api/addresses/search', [() => import('#controllers/addresses_controller'), 'search'])
   .middleware([middleware.auth()])
+
+router
+  .resource('/api/travels', () => import('#controllers/travels_controller'))
+  .only(['index'])
+  .middleware('*', [middleware.auth()])
