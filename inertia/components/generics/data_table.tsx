@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Table, UnstyledButton, Group } from '@mantine/core'
-import { IconArrowUp, IconArrowDown } from 'react-icons/tb'
+import { TbArrowUp, TbArrowDown } from 'react-icons/tb'
 
 export interface Column<T> {
   key: keyof T | string
@@ -50,9 +50,9 @@ export function DataTable<T>({ columns, data }: DataTableProps<T>) {
                     {col.label}
                     {sortKey === col.key ? (
                       direction === 'asc' ? (
-                        <IconArrowUp size={12} />
+                        <TbArrowUp size={12} />
                       ) : (
-                        <IconArrowDown size={12} />
+                        <TbArrowDown size={12} />
                       )
                     ) : null}
                   </Group>

@@ -1,10 +1,7 @@
 import Address from '#models/address'
 import type { HttpContext } from '@adonisjs/core/http'
 import { addressToDto } from '#dtos/address'
-import {
-  createAddressValidator,
-  updateAddressValidator,
-} from '#validators/address'
+import { createAddressValidator, updateAddressValidator } from '#validators/address'
 
 export default class AddressesController {
   /**
@@ -22,7 +19,7 @@ export default class AddressesController {
       .paginate(page, 25)
 
     const { data, meta } = addresses.toJSON()
-    const addressesDto = data.map(addressToDto)
+    const addressesDto = data.map((item) => addressToDto(item as Address))
 
     return inertia.render('addresses/index', { addresses: addressesDto, meta })
   }

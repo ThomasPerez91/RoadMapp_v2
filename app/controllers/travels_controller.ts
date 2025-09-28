@@ -15,7 +15,7 @@ export default class TravelsController {
         .paginate(page, 25)
 
       const { data, meta } = travels.toJSON()
-      const travelsDto = data.map(travelToDto)
+      const travelsDto = data.map((item) => travelToDto(item as Travel))
 
       return inertia.render('travels/index', { travels: travelsDto, meta })
     } catch (error) {

@@ -58,9 +58,9 @@ export const UserNavbar = ({ width }: NavbarProps) => {
               </Group>
               <Group gap="xs">
                 <Title order={5} style={{ color: 'var(--mantine-color-sand-12)', fontWeight: 600 }}>
-                  {user.user.name}
+                  {user.user?.name}
                 </Title>
-                <Avatar src={user.user.avatarUrl} alt={user.user.name} radius="xl" size="md" />
+                <Avatar src={user.user?.avatarUrl} alt={user.user?.name} radius="xl" size="md" />
               </Group>
             </>
           )}
