@@ -26,7 +26,7 @@ export const UserNavbarLinks = ({ isMobile }: UserNavbarLinksProps) => {
             children={
               <Group gap="xs" align="center">
                 {dashboardIcon}
-                <Title order={5} style={{ color: 'var(--mantine-color-sand-12)', fontWeight: 600 }}>
+                <Title order={5} style={{ color: 'var(--mantine-color-text)', fontWeight: 600 }}>
                   Dashboard
                 </Title>
               </Group>
