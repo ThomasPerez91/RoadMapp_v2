@@ -37,7 +37,6 @@ export function useAppDrawer() {
 export const AppDrawerProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const theme = useMantineTheme();
   const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`, false);
-  const isShort = useMediaQuery('(max-height: 500px)');
 
   const [opened, { open: openDrawer, close }] = useDisclosure(false);
   const [options, setOptions] = useState<DrawerOptions>({ title: '', content: null });
@@ -47,8 +46,8 @@ export const AppDrawerProvider: FC<{ children: ReactNode }> = ({ children }) => 
     openDrawer();
   }, [openDrawer]);
 
-  const position = (isMobile || isShort) ? 'bottom' : 'right';
-  const size = (isMobile || isShort) ? '100%' : 'md';
+  const position = isMobile ? 'bottom' : 'right';
+  const size = isMobile ? '100%' : 480; // desktop : largeur fixe
 
   return (
     <AppDrawerContext.Provider value={{ open: handleOpen, close }}>
@@ -61,6 +60,7 @@ export const AppDrawerProvider: FC<{ children: ReactNode }> = ({ children }) => 
         size={size}
         padding="md"
         withinPortal
+        zIndex={4100} // ↑ au-dessus de la navbar
         trapFocus
         lockScroll
         closeOnEscape

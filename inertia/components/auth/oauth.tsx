@@ -21,7 +21,7 @@ export const OAuth = ({ mode }: OAuthProps) => {
           href="/api/google/redirect"
           newTab={false}
           variant="gradient"
-          gradient={{ from: 'cyan', to: 'teal', deg: 90 }}
+          gradient={{ from: 'ocean', to: 'plum', deg: 60 }}
         >
           <Text>{mode === 'login' ? 'Se connecter' : "S'inscrire"} avec Google</Text>
         </Button>
@@ -33,7 +33,7 @@ export const OAuth = ({ mode }: OAuthProps) => {
           href="/api/github/redirect"
           newTab={false}
           variant="gradient"
-          gradient={{ from: 'teal', to: 'cyan', deg: 90 }}
+          gradient={{ from: 'plum', to: 'ocean', deg: 60 }}
         >
           <Text>{mode === 'login' ? 'Se connecter' : "S'inscrire"} avec Github</Text>
         </Button>

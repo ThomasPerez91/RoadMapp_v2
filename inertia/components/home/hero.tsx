@@ -99,7 +99,7 @@ export const Hero = () => {
                 radius="xl"
                 rightSection={registerIcon}
                 variant="gradient"
-                gradient={{ from: 'teal', to: 'cyan', deg: 90 }}
+                gradient={{ from: 'ocean', to: 'plum', deg: 60 }}
                 onClick={() =>
                   open({
                     title: 'Inscription',
