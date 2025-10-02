@@ -64,7 +64,7 @@ export const HomeNavbar = ({ width }: NavbarProps) => {
         >
           {/* Left: brand */}
           <Group gap="sm" wrap="nowrap">
-            {isMobile && <Burger opened={opened} onClick={handler.toggle} size="sm" />}
+            {isMobile && <Burger opened={opened} onClick={handler.toggle} size="sm" aria-label="Ouvrir le menu" />}
             <Logo size={isMobile ? 48 : 60} />
             <Title order={5} style={{ fontWeight: 700, color: 'var(--mantine-color-text)' }}>
               RoadMapp
@@ -81,7 +81,7 @@ export const HomeNavbar = ({ width }: NavbarProps) => {
                     route="/dashboard"
                     rightSection={<LuLayoutDashboard size={18} />}
                     variant="gradient"
-                    gradient={{ from: 'cyan', to: 'teal', deg: 90 }}
+                    gradient={{ from: 'ocean', to: 'plum', deg: 60 }}
                   >
                     <b>Dashboard</b>
                   </Button>
@@ -134,10 +134,11 @@ export const HomeNavbar = ({ width }: NavbarProps) => {
           size="100%"
           padding="md"
           withinPortal
+          zIndex={4000} // ↑ au-dessus de la navbar
           styles={{
             content: {
               backdropFilter: 'blur(8px)',
-              background: 'rgba(7,14,24,.85)',
+              background: 'rgba(7,14,24,.92)',
               borderLeft: 'none',
             },
             header: {
@@ -153,18 +154,14 @@ export const HomeNavbar = ({ width }: NavbarProps) => {
         >
           <Drawer.Overlay />
           <Drawer.Content>
+            {/* header compact (pas de logo/brand pour éviter la répétition) */}
             <Drawer.Header>
               <Drawer.Title>
-                <Flex align="center" justify="space-between">
-                  <Group gap="sm">
-                    <Logo size={40} />
-                    <Title order={5} style={{ fontWeight: 700, color: 'var(--mantine-color-text)' }}>
-                      RoadMapp
-                    </Title>
-                  </Group>
-                </Flex>
+                <Title order={6} style={{ fontWeight: 700, color: 'var(--mantine-color-text)' }}>
+                  Menu
+                </Title>
               </Drawer.Title>
-              <Drawer.CloseButton />
+              <Drawer.CloseButton aria-label="Fermer le menu" />
             </Drawer.Header>
 
             <Drawer.Body>
@@ -191,7 +188,7 @@ export const HomeNavbar = ({ width }: NavbarProps) => {
                       component={InternalLink}
                       route="/api/logout"
                       variant="gradient"
-                      gradient={{ from: 'red', to: 'orange', deg: 90 }}
+                      gradient={{ from: 'plum', to: 'ocean', deg: 60 }}
                     >
                       <RiLogoutBoxRLine size={18} />
                     </Button>
