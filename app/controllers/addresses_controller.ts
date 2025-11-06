@@ -37,11 +37,14 @@ export default class AddressesController {
   async store({ request, auth, response }: HttpContext) {
     await auth.check()
     const user = auth.user!
+    console.log(user)
+    console.log(request.body())
     try {
       const data = await request.validateUsing(createAddressValidator)
       const address = await Address.create({ ...data, userId: user.id })
       return response.created(addressToDto(address))
     } catch (error) {
+      console.log("Ereur lors de la création de l'adresse :", error)
       return response.badRequest({ message: (error as Error).message })
     }
   }

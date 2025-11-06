@@ -12,12 +12,13 @@ const inertiaConfig = defineConfig({
    */
   sharedData: {
     auth: async (ctx) => {
-			await ctx.auth?.check();
-			return {
-				user: ctx.auth?.user || null,
-				isAuthenticated: ctx.auth?.isAuthenticated || false,
-			};
-		},
+      await ctx.auth?.check()
+      return {
+        user: ctx.auth?.user || null,
+        isAuthenticated: ctx.auth?.isAuthenticated || false,
+      }
+    },
+    csrfToken: async (ctx) => ctx.request.csrfToken,
   },
 
   /**
@@ -25,8 +26,8 @@ const inertiaConfig = defineConfig({
    */
   ssr: {
     enabled: true,
-    entrypoint: 'inertia/app/ssr.tsx'
-  }
+    entrypoint: 'inertia/app/ssr.tsx',
+  },
 })
 
 export default inertiaConfig

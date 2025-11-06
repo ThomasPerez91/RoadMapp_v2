@@ -39,7 +39,7 @@ export default class AuthController {
 
       const existingUser = await User.findBy('email', socialUser.email)
 
-      if (existingUser && existingUser.oauthId !== String(socialUser.id)) {
+      if (existingUser && existingUser.oauth_id !== String(socialUser.id)) {
         return response.unauthorized(
           `This email is already linked to a different provider. Please use the correct one.`
         )
@@ -48,17 +48,17 @@ export default class AuthController {
       const user = await User.updateOrCreate(
         { email: socialUser.email },
         {
-          oauthId: socialUser.id,
-          oauthProvider: provider,
+          oauth_id: socialUser.id,
+          oauth_provider: provider,
           name: socialUser.name,
           nickname: socialUser.nickName,
           email: socialUser.email,
-          emailVerification: socialUser.emailVerificationState,
-          avatarUrl: socialUser.avatarUrl,
+          email_verification: socialUser.emailVerificationState,
+          avatar_url: socialUser.avatarUrl,
           token: socialUser.token.token,
-          tokenType: socialUser.token.type,
-          expireAt: 'expireAt' in socialUser.token ? socialUser.token.expireAt : null,
-          expireIn: 'expireIn' in socialUser.token ? socialUser.token.expireIn : null,
+          token_type: socialUser.token.type,
+          expire_at: 'expire_at' in socialUser.token ? socialUser.token.expire_at : null,
+          expire_in: 'expire_in' in socialUser.token ? socialUser.token.expire_in : null,
         }
       )
 
