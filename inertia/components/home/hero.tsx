@@ -9,27 +9,27 @@ import {
   Title,
   rem,
   useMantineTheme,
-} from '@mantine/core';
-import { useMediaQuery } from '@mantine/hooks';
-import { AiOutlineUserAdd } from 'react-icons/ai';
-import { RiLoginBoxLine } from 'react-icons/ri';
-import { useAppDrawer } from '../drawer';
-import { OAuth } from '../auth/oauth';
+} from '@mantine/core'
+import { useMediaQuery } from '@mantine/hooks'
+import { AiOutlineUserAdd } from 'react-icons/ai'
+import { RiLoginBoxLine } from 'react-icons/ri'
+import { useAppDrawer } from '../drawer'
+import { OAuth } from '../auth/oauth'
 
 export const Hero = () => {
-  const theme = useMantineTheme();
-  const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`, false);
-  const { open } = useAppDrawer();
+  const theme = useMantineTheme()
+  const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`, false)
+  const { open } = useAppDrawer()
 
-  const registerIcon = <AiOutlineUserAdd size={20} />;
-  const loginIcon = <RiLoginBoxLine size={18} />;
+  const registerIcon = <AiOutlineUserAdd size={20} />
+  const loginIcon = <RiLoginBoxLine size={18} />
 
   return (
     <Box
       component="section"
       aria-label="Présentation RoadMapp"
       style={{
-        paddingTop: isMobile ? rem(72) : rem(64 + 24), // navbar + marge
+        paddingTop: isMobile ? rem(72) : rem(12 + 24),
         paddingBottom: isMobile ? rem(32) : rem(48),
       }}
     >
@@ -113,7 +113,8 @@ export const Hero = () => {
               <Button
                 size="lg"
                 radius="xl"
-                variant="light"
+                variant="gradient"
+                gradient={{ from: 'plum', to: 'ocean', deg: 60 }}
                 rightSection={loginIcon}
                 onClick={() =>
                   open({
@@ -131,13 +132,11 @@ export const Hero = () => {
               aria-label="Accroche RoadMapp"
               style={{ marginTop: rem(8), fontSize: rem(14), opacity: 0.75 }}
             >
-              <Text>
-                Gratuit pour les particuliers • Outils pros et gestion de flotte à venir
-              </Text>
+              <Text>Gratuit pour les particuliers • Outils pros et gestion de flotte à venir</Text>
             </Box>
           </Stack>
         </Paper>
       </Container>
     </Box>
-  );
-};
+  )
+}

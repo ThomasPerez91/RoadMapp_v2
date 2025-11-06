@@ -12,19 +12,19 @@ export default class Travel extends BaseModel {
   declare date: Date
 
   @column()
-  declare userId: number
+  declare user_id: number
 
   @column()
-  declare distanceToString: string
+  declare distance_to_string: string
 
   @column()
   declare distance: number
 
   @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
+  declare created_at: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
+  declare updated_at: DateTime
 
   @belongsTo(() => User)
   declare user: BelongsTo<typeof User>

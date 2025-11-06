@@ -1,19 +1,17 @@
-import { ColorSchemeScript, MantineProvider, Global } from '@mantine/core';
-import { PropsWithChildren } from 'react';
-import { AppDrawerProvider } from '~/components/drawer';
-import theme from './theme';
+import { ColorSchemeScript, MantineProvider } from '@mantine/core'
+import { Global } from '@emotion/react'
+import { PropsWithChildren } from 'react'
+import { AppDrawerProvider } from '~/components/drawer'
+import theme from '../theme'
 
 interface BaseLayoutProps extends PropsWithChildren {
-  forceColorScheme?: 'dark' | 'light';
+  forceColorScheme?: 'dark' | 'light'
 }
 
 export function BaseLayout({ children, forceColorScheme }: BaseLayoutProps) {
   return (
     <>
-      <ColorSchemeScript
-        defaultColorScheme="dark"
-        forceColorScheme={forceColorScheme}
-      />
+      <ColorSchemeScript defaultColorScheme="dark" forceColorScheme={forceColorScheme} />
 
       <MantineProvider
         theme={theme}
@@ -24,7 +22,7 @@ export function BaseLayout({ children, forceColorScheme }: BaseLayoutProps) {
         <Global
           styles={{
             'html, body, #app': { height: '100%' },
-            body: {
+            'body': {
               margin: 0,
               backgroundColor: '#070e18',
               backgroundImage: 'url(/bg.webp)', // place bg.webp dans /public
@@ -42,7 +40,7 @@ export function BaseLayout({ children, forceColorScheme }: BaseLayoutProps) {
         <AppDrawerProvider>{children}</AppDrawerProvider>
       </MantineProvider>
     </>
-  );
+  )
 }
 
-export default BaseLayout;
+export default BaseLayout

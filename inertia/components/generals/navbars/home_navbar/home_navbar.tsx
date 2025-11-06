@@ -11,32 +11,39 @@ import {
   Stack,
   Title,
   useMantineTheme,
-} from '@mantine/core';
-import { useDisclosure, useHeadroom, useMediaQuery } from '@mantine/hooks';
-import { useEffect } from 'react';
-import { Logo } from '../../logo/logo';
-import authUser from '~/hooks/auth';
-import { InternalLink } from '~/components/links/internal_link';
-import { NavbarAuth } from '~/components/auth/navbar_auth';
-import { UserNavbarLinks } from '~/components/links/user_navbar_links';
-import { LuLayoutDashboard } from 'react-icons/lu';
-import { RiLogoutBoxRLine, RiSettings3Line } from 'react-icons/ri';
+} from '@mantine/core'
+import { useDisclosure, useHeadroom, useMediaQuery } from '@mantine/hooks'
+import { useEffect, useState } from 'react'
+import { Logo } from '../../logo/logo'
+import authUser from '~/hooks/auth'
+import { InternalLink } from '~/components/links/internal_link'
+import { NavbarAuth } from '~/components/auth/navbar_auth'
+import { UserNavbarLinks } from '~/components/links/user_navbar_links'
+import { LuLayoutDashboard } from 'react-icons/lu'
+import { RiLogoutBoxRLine, RiSettings3Line } from 'react-icons/ri'
 
 interface NavbarProps {
-  width: string;
+  width: string
 }
 
 export const HomeNavbar = ({ width }: NavbarProps) => {
-  const user = authUser();
-  const theme = useMantineTheme();
-  const [opened, handler] = useDisclosure(false);
-  const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`, false);
-  const pinned = useHeadroom({ fixedAt: 120 });
+  const user = authUser()
+  const theme = useMantineTheme()
+  const [opened, handler] = useDisclosure(false)
+  const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`, false)
+  const pinned = useHeadroom({ fixedAt: 120 })
+
+  // Hydratation: on force un rendu identique SSR + 1er rendu client
+  const [isHydrated, setIsHydrated] = useState(false)
 
   useEffect(() => {
-    if (opened && !isMobile) handler.close();
+    setIsHydrated(true)
+  }, [])
+
+  useEffect(() => {
+    if (opened && !isMobile) handler.close()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobile]);
+  }, [isMobile])
 
   return (
     <Stack gap={0}>
@@ -64,14 +71,21 @@ export const HomeNavbar = ({ width }: NavbarProps) => {
         >
           {/* Left: brand */}
           <Group gap="sm" wrap="nowrap">
-            {isMobile && <Burger opened={opened} onClick={handler.toggle} size="sm" aria-label="Ouvrir le menu" />}
+            {isMobile && (
+              <Burger
+                opened={opened}
+                onClick={handler.toggle}
+                size="sm"
+                aria-label="Ouvrir le menu"
+              />
+            )}
             <Logo size={isMobile ? 48 : 60} />
             <Title order={5} style={{ fontWeight: 700, color: 'var(--mantine-color-text)' }}>
               RoadMapp
             </Title>
           </Group>
 
-          {/* Right (desktop): Dashboard + Avatar dropdown si connecté, sinon bloc auth */}
+          {/* Right (desktop) */}
           {!isMobile && (
             <Group justify="flex-end" gap="md" style={{ flex: 1 }}>
               {user.isAuthenticated ? (
@@ -86,20 +100,36 @@ export const HomeNavbar = ({ width }: NavbarProps) => {
                     <b>Dashboard</b>
                   </Button>
 
-                  <Menu width={220} position="bottom-end" shadow="md" radius="md" withinPortal>
+                  {/* Avatar dropdown */}
+                  <Menu
+                    width={220}
+                    position="bottom-end"
+                    offset={6}
+                    shadow="md"
+                    radius="md"
+                    withinPortal
+                    styles={{
+                      dropdown: {
+                        background: 'linear-gradient(180deg, rgba(7,14,24,.92), rgba(7,14,24,.80))',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(255,255,255,.06)',
+                      },
+                    }}
+                  >
                     <Menu.Target>
                       <Avatar
-                        src={user.user.avatarUrl}
+                        src={isHydrated ? user.user.avatarUrl : undefined}
                         alt={user.user.name}
                         radius="xl"
                         size="md"
                         component="button"
                         style={{ cursor: 'pointer' }}
                         title={user.user.name}
-                      />
+                      >
+                        {user.user.name?.[0]?.toUpperCase()}
+                      </Avatar>
                     </Menu.Target>
                     <Menu.Dropdown>
-                      <Menu.Label>{user.user.name}</Menu.Label>
                       <Menu.Item
                         leftSection={<RiSettings3Line size={16} />}
                         component={InternalLink}
@@ -134,7 +164,7 @@ export const HomeNavbar = ({ width }: NavbarProps) => {
           size="100%"
           padding="md"
           withinPortal
-          zIndex={4000} // ↑ au-dessus de la navbar
+          zIndex={4000}
           styles={{
             content: {
               backdropFilter: 'blur(8px)',
@@ -148,13 +178,15 @@ export const HomeNavbar = ({ width }: NavbarProps) => {
             body: {
               padding: 'var(--mantine-spacing-md)',
               height: `calc(100vh - ${isMobile ? rem(56) : rem(60)})`,
+              display: 'flex',
+              flexDirection: 'column',
             },
             overlay: { backdropFilter: 'blur(2px)' },
           }}
         >
           <Drawer.Overlay />
           <Drawer.Content>
-            {/* header compact (pas de logo/brand pour éviter la répétition) */}
+            {/* Header compact */}
             <Drawer.Header>
               <Drawer.Title>
                 <Title order={6} style={{ fontWeight: 700, color: 'var(--mantine-color-text)' }}>
@@ -165,40 +197,46 @@ export const HomeNavbar = ({ width }: NavbarProps) => {
             </Drawer.Header>
 
             <Drawer.Body>
-              <Flex direction="column" justify="space-between" gap="md" style={{ height: '99%' }}>
-                {!user.isAuthenticated && <NavbarAuth isMobile />}
+              {/* Liens */}
+              <Flex direction="column" gap="md">
                 <UserNavbarLinks isMobile />
-                {user.isAuthenticated && (
-                  <Flex direction="row" justify="space-between" align="center" gap="md">
-                    <Group gap="md">
-                      <Title
-                        order={5}
-                        style={{ color: 'var(--mantine-color-text)', fontWeight: 600 }}
-                      >
-                        {user.user.name}
-                      </Title>
-                      <Avatar
-                        src={user.user.avatarUrl}
-                        alt={user.user.name}
-                        radius="xl"
-                        size={isMobile ? 'lg' : 'md'}
-                      />
-                    </Group>
-                    <Button
-                      component={InternalLink}
-                      route="/api/logout"
-                      variant="gradient"
-                      gradient={{ from: 'plum', to: 'ocean', deg: 60 }}
-                    >
-                      <RiLogoutBoxRLine size={18} />
-                    </Button>
-                  </Flex>
-                )}
               </Flex>
+
+              {/* Bas de drawer : avatar + logout */}
+              {user.isAuthenticated && (
+                <Flex
+                  direction="row"
+                  justify="space-between"
+                  align="center"
+                  gap="md"
+                  mt="auto"
+                  pt="md"
+                  style={{ borderTop: '1px solid rgba(255,255,255,.06)' }}
+                >
+                  <Avatar
+                    src={isHydrated ? user.user.avatarUrl : undefined}
+                    alt={user.user.name}
+                    radius="xl"
+                    size="lg"
+                    title={user.user.name}
+                  >
+                    {user.user.name?.[0]?.toUpperCase()}
+                  </Avatar>
+                  <Button
+                    component={InternalLink}
+                    route="/api/logout"
+                    variant="gradient"
+                    gradient={{ from: 'plum', to: 'ocean', deg: 60 }}
+                    rightSection={<RiLogoutBoxRLine size={18} />}
+                  >
+                    Déconnexion
+                  </Button>
+                </Flex>
+              )}
             </Drawer.Body>
           </Drawer.Content>
         </Drawer.Root>
       </Box>
     </Stack>
-  );
-};
+  )
+}

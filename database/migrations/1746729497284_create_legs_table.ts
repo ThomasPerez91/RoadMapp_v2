@@ -7,7 +7,7 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
       table
-        .integer('startId')
+        .integer('start_id')
         .notNullable()
         .unsigned()
         .references('id')
@@ -15,7 +15,7 @@ export default class extends BaseSchema {
         .onDelete('CASCADE')
         .onUpdate('CASCADE')
       table
-        .integer('endId')
+        .integer('end_id')
         .notNullable()
         .unsigned()
         .references('id')
@@ -23,15 +23,15 @@ export default class extends BaseSchema {
         .onDelete('CASCADE')
         .onUpdate('CASCADE')
       table
-        .integer('travelId')
+        .integer('travel_id')
         .notNullable()
         .unsigned()
         .references('id')
         .inTable('travels')
         .onDelete('CASCADE')
         .onUpdate('CASCADE')
-      table.string('distanceToString').notNullable()
-      table.string('durationToString').notNullable()
+      table.string('distance_to_string').notNullable()
+      table.string('duration_to_string').notNullable()
       table.integer('distance').notNullable()
       table.integer('duration').notNullable()
       table.timestamp('created_at')
