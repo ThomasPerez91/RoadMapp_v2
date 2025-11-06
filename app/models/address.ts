@@ -4,39 +4,47 @@ import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import User from '#models/user'
 
 export default class Address extends BaseModel {
-  @column({ isPrimary: true })
+  @column({ isPrimary: true, columnName: 'id' })
   declare id: number
 
-  @column()
+  @column({ columnName: 'name' })
   declare name: string
 
-  @column()
+  @column({ columnName: 'address' })
   declare address: string
 
-  @column()
+  @column({ columnName: 'postal_code' })
   declare postalCode: string
 
-  @column()
+  @column({ columnName: 'city' })
   declare city: string
 
-  @column()
+  @column({ columnName: 'user_id' })
   declare userId: number
 
-  @column()
+  @column({ columnName: 'is_home' })
   declare isHome: boolean
 
-  @column({ consume: (v) => Boolean(v), serialize: (v) => v })
+  @column({
+    columnName: 'is_active',
+    consume: (v) => Boolean(v),
+    serialize: (v) => v,
+  })
   declare isActive: boolean
 
-  @column({ consume: (v) => Boolean(v), serialize: (v) => v })
+  @column({
+    columnName: 'checked',
+    consume: (v) => Boolean(v),
+    serialize: (v) => v,
+  })
   declare checked: boolean
 
-  @column.dateTime({ autoCreate: true })
+  @column.dateTime({ autoCreate: true, columnName: 'created_at' })
   declare createdAt: DateTime
 
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  @column.dateTime({ autoCreate: true, autoUpdate: true, columnName: 'updated_at' })
   declare updatedAt: DateTime
 
-  @belongsTo(() => User)
+  @belongsTo(() => User, { foreignKey: 'user_id' })
   declare user: BelongsTo<typeof User>
 }

@@ -9,19 +9,19 @@ export default class Leg extends BaseModel {
   declare id: number
 
   @column()
-  declare startId: number
+  declare start_id: number
 
   @column()
-  declare endId: number
+  declare end_id: number
 
   @column()
-  declare travelId: number
+  declare travel_id: number
 
   @column()
-  declare distanceToString: string
+  declare distance_to_string: string
 
   @column()
-  declare durationToString: string
+  declare duration_to_string: string
 
   @column()
   declare distance: number
@@ -30,17 +30,17 @@ export default class Leg extends BaseModel {
   declare duration: number
 
   @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
+  declare created_at: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
+  declare updated_at: DateTime
 
   @belongsTo(() => Travel)
   declare travel: BelongsTo<typeof Travel>
 
-  @belongsTo(() => Address, { foreignKey: 'startAddressId' })
-  declare startAddress: BelongsTo<typeof Address>
+  @belongsTo(() => Address, { foreignKey: 'start_address_id' })
+  declare start_address: BelongsTo<typeof Address>
 
-  @belongsTo(() => Address, { foreignKey: 'endAddressId' })
-  declare endAddress: BelongsTo<typeof Address>
+  @belongsTo(() => Address, { foreignKey: 'end_address_id' })
+  declare end_address: BelongsTo<typeof Address>
 }

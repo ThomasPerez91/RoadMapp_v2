@@ -21,12 +21,8 @@ createInertiaApp({
       `../pages/${name}.tsx`,
       import.meta.glob('../pages/**/*.tsx')
     )
-
     currentPage.default.layout =
-
       currentPage.default.layout || ((p: any) => <HomeLayout children={p} />)
-
-
     return currentPage
   },
 

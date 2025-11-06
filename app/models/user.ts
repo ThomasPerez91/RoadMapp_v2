@@ -10,16 +10,16 @@ export default class User extends BaseModel {
   declare id: number
 
   @column({ serializeAs: null })
-  declare oauthId: string
+  declare oauth_id: string
 
-  @column({ serializeAs: 'oauthProvider' })
-  declare oauthProvider: string
+  @column({ serializeAs: 'oauth_provider' })
+  declare oauth_provider: string
 
   @column({ serializeAs: 'email' })
   declare email: string
 
   @column({ serializeAs: null })
-  declare emailVerification: string
+  declare email_verification: string
 
   @column({ serializeAs: 'name' })
   declare name: string
@@ -28,28 +28,28 @@ export default class User extends BaseModel {
   declare nickname: string
 
   @column({ serializeAs: 'avatarUrl' })
-  declare avatarUrl: string
+  declare avatar_url: string
 
   @column({ serializeAs: null })
   declare token: string
 
   @column({ serializeAs: null })
-  declare tokenType: string
+  declare token_type: string
 
   @column({ serializeAs: null })
-  declare refreshToken: string | null
+  declare refresh_token: string | null
 
   @column({ serializeAs: null })
-  declare expireAt: DateTime | null
+  declare expire_at: DateTime | null
 
   @column({ serializeAs: null })
-  declare expireIn: number | null
+  declare expire_in: number | null
 
   @column.dateTime({ autoCreate: true })
-  declare createdAt: DateTime
+  declare created_at: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updatedAt: DateTime
+  declare updated_at: DateTime
 
   @hasMany(() => Address)
   declare addresses: HasMany<typeof Address>
@@ -57,9 +57,9 @@ export default class User extends BaseModel {
   @hasMany(() => Travel)
   declare travels: HasMany<typeof Travel>
 
-  @hasMany(() => Leg, { foreignKey: 'startAddressId' })
+  @hasMany(() => Leg, { foreignKey: 'start_address_id' })
   declare departures: HasMany<typeof Leg>
 
-  @hasMany(() => Leg, { foreignKey: 'endAddressId' })
+  @hasMany(() => Leg, { foreignKey: 'end_address_id' })
   declare arrivals: HasMany<typeof Leg>
 }
