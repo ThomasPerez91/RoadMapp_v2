@@ -39,6 +39,13 @@ export default class Address extends BaseModel {
   })
   declare checked: boolean
 
+  @column({
+    columnName: 'used',
+    consume: (v) => Boolean(v),
+    serialize: (v) => v,
+  })
+  declare used: boolean
+
   @column.dateTime({ autoCreate: true, columnName: 'created_at' })
   declare createdAt: DateTime
 

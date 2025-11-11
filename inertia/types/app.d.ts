@@ -15,6 +15,7 @@ export interface Address {
   isHome: boolean
   isActive: boolean
   checked: boolean
+  used: boolean
 }
 
 export interface Travel {

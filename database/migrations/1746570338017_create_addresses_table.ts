@@ -21,6 +21,7 @@ export default class extends BaseSchema {
       table.boolean('is_home').notNullable().defaultTo(false)
       table.boolean('is_active').notNullable().defaultTo(true)
       table.boolean('checked').notNullable().defaultTo(false)
+      table.boolean('used').notNullable().defaultTo(false)
       table.timestamp('created_at')
       table.timestamp('updated_at')
     })
