@@ -1,3 +1,4 @@
+// inertia/components/addresses/address_form.tsx
 import { Button, Stack, TextInput } from '@mantine/core'
 import { useForm } from '@mantine/form'
 import { useState } from 'react'
@@ -17,7 +18,6 @@ interface AddressFormProps {
   address?: Address
 }
 
-// 🔐 Récupère le token CSRF depuis le cookie XSRF-TOKEN
 function getCsrfTokenFromCookie(): string {
   if (typeof document === 'undefined') return ''
   const cookie = document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='))
@@ -30,6 +30,9 @@ export function AddressForm({ onSuccess, address }: AddressFormProps) {
   const [flash, setFlash] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [loading, setLoading] = useState(false)
 
+  const isEdit = !!address
+  const isUsed = !!address?.used
+
   const form = useForm<AddressFormValues>({
     initialValues: {
       name: address?.name || '',
@@ -39,9 +42,9 @@ export function AddressForm({ onSuccess, address }: AddressFormProps) {
     },
     validate: {
       name: (v) => (v.trim() === '' ? 'Requis' : null),
-      address: (v) => (v.trim() === '' ? 'Requis' : null),
-      postal_code: (v) => (v.trim() === '' ? 'Requis' : null),
-      city: (v) => (v.trim() === '' ? 'Requis' : null),
+      address: (v) => (isUsed ? null : v.trim() === '' ? 'Requis' : null),
+      postal_code: (v) => (isUsed ? null : v.trim() === '' ? 'Requis' : null),
+      city: (v) => (isUsed ? null : v.trim() === '' ? 'Requis' : null),
     },
   })
 
@@ -52,15 +55,15 @@ export function AddressForm({ onSuccess, address }: AddressFormProps) {
     try {
       const csrfToken = getCsrfTokenFromCookie()
 
-      const res = await fetch(address ? `/api/addresses/${address.id}` : '/api/addresses', {
-        method: address ? 'PUT' : 'POST',
+      const res = await fetch(isEdit ? `/api/addresses/${address!.id}` : '/api/addresses', {
+        method: isEdit ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-XSRF-TOKEN': csrfToken, // ✅ ce que Shield attend
+          'X-XSRF-TOKEN': csrfToken,
         },
         body: JSON.stringify(values),
-        credentials: 'include', // 🔐 pour envoyer le cookie XSRF-TOKEN avec la requête
+        credentials: 'include',
       })
 
       if (!res.ok) {
@@ -82,9 +85,26 @@ export function AddressForm({ onSuccess, address }: AddressFormProps) {
       <FlashMessages flash={flash} />
       <Stack>
         <TextInput label="Nom" withAsterisk {...form.getInputProps('name')} />
-        <TextInput label="Adresse" withAsterisk {...form.getInputProps('address')} />
-        <TextInput label="Code postal" withAsterisk {...form.getInputProps('postal_code')} />
-        <TextInput label="Ville" withAsterisk {...form.getInputProps('city')} />
+
+        <TextInput
+          label="Adresse"
+          withAsterisk={!isUsed}
+          disabled={isUsed}
+          {...form.getInputProps('address')}
+        />
+        <TextInput
+          label="Code postal"
+          withAsterisk={!isUsed}
+          disabled={isUsed}
+          {...form.getInputProps('postal_code')}
+        />
+        <TextInput
+          label="Ville"
+          withAsterisk={!isUsed}
+          disabled={isUsed}
+          {...form.getInputProps('city')}
+        />
+
         <Button
           type="submit"
           loading={loading}

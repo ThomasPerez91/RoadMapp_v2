@@ -7,6 +7,7 @@ export interface AddressDto {
   isHome: boolean
   isActive: boolean
   checked: boolean
+  used: boolean
 }
 
 import type Address from '#models/address'
@@ -21,5 +22,6 @@ export function addressToDto(address: Address): AddressDto {
     isHome: address.isHome,
     isActive: address.isActive,
     checked: address.checked,
+    used: address.used,
   }
 }

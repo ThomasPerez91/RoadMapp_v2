@@ -34,7 +34,7 @@ export const UserNavbarLinks = ({ isMobile }: UserNavbarLinksProps) => {
           />
 
           <InternalLink
-            route="/api/addresses"
+            route="/addresses"
             children={
               <Group gap="xs" align="center">
                 {addressBookIcon}

@@ -4,8 +4,6 @@ import {
   Pagination,
   TextInput,
   Box,
-  ScrollArea,
-  Highlight,
   Button,
   Badge,
   Group,
@@ -49,6 +47,13 @@ function normalize(str: string) {
     .toLowerCase()
 }
 
+function getCsrfTokenFromCookie(): string {
+  if (typeof document === 'undefined') return ''
+  const cookie = document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='))
+  if (!cookie) return ''
+  return decodeURIComponent(cookie.split('=')[1] || '')
+}
+
 function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps) {
   const theme = useMantineTheme()
   const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`, false)
@@ -63,6 +68,10 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
 
   const [results, setResults] = useState<Address[]>([])
   const [flash, setFlash] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
+  const hasSearch = debounced.trim().length > 0
+
+  const displayItems = useMemo(() => (hasSearch ? results : items), [hasSearch, results, items])
 
   useEffect(() => setItems(addresses), [addresses])
   useEffect(() => setPage(meta.currentPage), [meta.currentPage])
@@ -81,7 +90,6 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
     goto(1, next)
   }
 
-  // Live search en fonction du status
   useEffect(() => {
     const q = debounced.trim()
     if (!q) {
@@ -89,26 +97,18 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
       return
     }
     const active = status === 'active'
+
     fetch(`/api/addresses/search?q=${encodeURIComponent(q)}&active=${active ? 'true' : 'false'}`)
       .then((r) => r.json())
       .then((list: Address[]) => {
         const nq = normalize(q)
+        // on remet en tête celles dont le nom commence par le terme (en plus du filtre back)
         const starts = list.filter((a) => normalize(a.name).startsWith(nq))
         const others = list.filter((a) => !normalize(a.name).startsWith(nq))
         setResults([...starts, ...others])
       })
       .catch(() => setResults([]))
   }, [debounced, status])
-
-  const resultItems = useMemo(() => {
-    const nq = normalize(debounced)
-    return results.map((addr) => ({
-      id: addr.id,
-      line1: addr.name,
-      line2: `${addr.address}, ${addr.postalCode} ${addr.city}`,
-      starts: normalize(addr.name).startsWith(nq),
-    }))
-  }, [results, debounced])
 
   const openCreate = () => {
     setFlash(null)
@@ -144,20 +144,36 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
   const toggleActive = async (addr: Address) => {
     setFlash(null)
     try {
+      const csrfToken = getCsrfTokenFromCookie()
+
       const res = await fetch(`/api/addresses/${addr.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: !addr.isActive }),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-XSRF-TOKEN': csrfToken,
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          // on renvoie tout ce que le validator attend
+          name: addr.name,
+          address: addr.address,
+          postal_code: addr.postalCode,
+          city: addr.city,
+          is_active: !addr.isActive,
+        }),
       })
+
       if (!res.ok) {
         const data = await res.json().catch(() => null)
         throw new Error(data?.message || 'Erreur inconnue')
       }
+
       setFlash({
         type: 'success',
         message: addr.isActive ? 'Adresse archivée' : 'Adresse restaurée',
       })
-      // Reste sur la même vue (active/archived)
+
       router.reload({ only: ['addresses', 'meta'] })
     } catch (error: any) {
       setFlash({ type: 'error', message: error.message })
@@ -168,11 +184,22 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
     if (!confirm('Confirmer la suppression ?')) return
     setFlash(null)
     try {
-      const res = await fetch(`/api/addresses/${id}`, { method: 'DELETE' })
+      const csrfToken = getCsrfTokenFromCookie()
+
+      const res = await fetch(`/api/addresses/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Accept': 'application/json',
+          'X-XSRF-TOKEN': csrfToken,
+        },
+        credentials: 'include',
+      })
+
       if (!res.ok) {
         const data = await res.json().catch(() => null)
         throw new Error(data?.message || 'Erreur inconnue')
       }
+
       setFlash({ type: 'success', message: 'Adresse supprimée' })
       router.reload({ only: ['addresses', 'meta'] })
     } catch (error: any) {
@@ -180,17 +207,16 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
     }
   }
 
-  const title =
-    status === 'active' ? 'Carnet d’adresses (actives)' : 'Carnet d’adresses (archivées)'
+  const title = status === 'active' ? 'Carnet d’adresses' : 'Carnet d’adresses archivées'
 
   return (
     <>
       <Head title="Carnet d'adresses" />
+      <FlashMessages flash={flash} />
       <Container size="lg">
         <Group justify="space-between" mb="sm" wrap="wrap">
           <Title order={3}>{title}</Title>
           <Group gap="md">
-            <FlashMessages flash={flash} />
             {/* Toggle Actives/Archivées */}
             <Button
               variant="light"
@@ -224,41 +250,11 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
             onChange={(e) => setQuery(e.currentTarget.value)}
             radius="md"
           />
-          {debounced && resultItems.length > 0 && (
-            <Paper
-              shadow="md"
-              radius="md"
-              p="xs"
-              withBorder
-              style={{
-                position: 'absolute',
-                insetInline: 0,
-                top: 'calc(100% + 8px)',
-                zIndex: 20,
-                background: 'linear-gradient(180deg, rgba(7,14,24,.92), rgba(7,14,24,.80))',
-                backdropFilter: 'blur(8px)',
-                border: '1px solid rgba(255,255,255,.06)',
-              }}
-            >
-              <ScrollArea.Autosize mah={220} type="always">
-                <Stack gap={6}>
-                  {resultItems.map((r) => (
-                    <Box key={`${r.id}-${r.line1}`} py={6}>
-                      <b>{r.line1}</b>
-                      <div style={{ opacity: 0.85 }}>
-                        <Highlight highlight={debounced}>{r.line2}</Highlight>
-                      </div>
-                    </Box>
-                  ))}
-                </Stack>
-              </ScrollArea.Autosize>
-            </Paper>
-          )}
         </Box>
 
         {isMobile ? (
           <Stack gap="sm">
-            {items.map((row) => (
+            {displayItems.map((row) => (
               <Paper
                 key={row.id}
                 p="md"
@@ -291,7 +287,12 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
                   </div>
                   <Menu withinPortal shadow="md">
                     <Menu.Target>
-                      <ActionIcon variant="subtle" color="gray" aria-label="Actions">
+                      <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        aria-label="Actions"
+                        data-used={row.used ? 'true' : 'false'}
+                      >
                         <TbDots size={18} />
                       </ActionIcon>
                     </Menu.Target>
@@ -313,14 +314,19 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
                       >
                         {row.isActive ? 'Archiver' : 'Restaurer'}
                       </Menu.Item>
-                      <Menu.Divider />
-                      <Menu.Item
-                        color="red"
-                        leftSection={<TbTrash size={14} />}
-                        onClick={() => destroyAddress(row.id)}
-                      >
-                        Supprimer
-                      </Menu.Item>
+
+                      {!row.used && (
+                        <>
+                          <Menu.Divider />
+                          <Menu.Item
+                            color="red"
+                            leftSection={<TbTrash size={14} />}
+                            onClick={() => destroyAddress(row.id)}
+                          >
+                            Supprimer
+                          </Menu.Item>
+                        </>
+                      )}
                     </Menu.Dropdown>
                   </Menu>
                 </Group>
@@ -330,16 +336,16 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
         ) : (
           <DataTable<Address>
             columns={[
-              { key: 'name', label: 'Nom', sortFn: (a, b) => a.name.localeCompare(b.name) },
-              { key: 'address', label: 'Adresse' },
-              { key: 'postalCode', label: 'Code postal' },
-              { key: 'city', label: 'Ville', sortFn: (a, b) => a.city.localeCompare(b.city) },
+              { key: 'name', label: 'NOM', sortFn: (a, b) => a.name.localeCompare(b.name) },
+              { key: 'address', label: 'ADRESSE' },
+              { key: 'postalCode', label: 'CODE POSTAL' },
+              { key: 'city', label: 'VILLE', sortFn: (a, b) => a.city.localeCompare(b.city) },
               {
                 key: 'isActive',
-                label: 'Statut',
+                label: 'STATUT',
                 render: (row) => (
                   <Badge color={row.isActive ? 'ocean' : 'red'} variant="filled">
-                    {row.isActive ? 'Active' : 'Inactive'}
+                    {row.isActive ? 'ACTIVE' : 'INACTIVE'}
                   </Badge>
                 ),
               },
@@ -349,7 +355,12 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
                 render: (row) => (
                   <Menu withinPortal shadow="md" position="bottom-end" offset={4}>
                     <Menu.Target>
-                      <ActionIcon variant="subtle" color="gray" aria-label="Actions">
+                      <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        aria-label="Actions"
+                        data-used={row.used ? 'true' : 'false'} // 👈 attr DOM
+                      >
                         <TbDots size={16} />
                       </ActionIcon>
                     </Menu.Target>
@@ -371,33 +382,41 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
                       >
                         {row.isActive ? 'Archiver' : 'Restaurer'}
                       </Menu.Item>
-                      <Menu.Divider />
-                      <Menu.Item
-                        color="red"
-                        leftSection={<TbTrash size={14} />}
-                        onClick={() => destroyAddress(row.id)}
-                      >
-                        Supprimer
-                      </Menu.Item>
+
+                      {/* ❌ pas de bouton Supprimer si used */}
+                      {!row.used && (
+                        <>
+                          <Menu.Divider />
+                          <Menu.Item
+                            color="red"
+                            leftSection={<TbTrash size={14} />}
+                            onClick={() => destroyAddress(row.id)}
+                          >
+                            Supprimer
+                          </Menu.Item>
+                        </>
+                      )}
                     </Menu.Dropdown>
                   </Menu>
                 ),
               },
             ]}
-            data={items}
+            data={displayItems}
           />
         )}
 
         <Divider my="md" />
-        <Pagination
-          total={meta.lastPage}
-          value={page}
-          onChange={(p) => {
-            setPage(p)
-            goto(p, status)
-          }}
-          mt="xs"
-        />
+        {!hasSearch && (
+          <Pagination
+            total={meta.lastPage}
+            value={page}
+            onChange={(p) => {
+              setPage(p)
+              goto(p, status)
+            }}
+            mt="xs"
+          />
+        )}
       </Container>
     </>
   )

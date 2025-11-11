@@ -1,15 +1,13 @@
 // inertia/home_layout.tsx
-import { Box, rem } from '@mantine/core';
-import { PropsWithChildren } from 'react';
-import { BaseLayout } from './base_layout';
-import { FlashMessages } from '~/components/flash_messages';
-import { HomeNavbar } from '~/components/generals/navbars/home_navbar/home_navbar';
+import { Box, rem } from '@mantine/core'
+import { PropsWithChildren } from 'react'
+import { BaseLayout } from './base_layout'
+import { HomeNavbar } from '~/components/generals/navbars/home_navbar/home_navbar'
 
-const LAYOUT_WIDTH = '1500px';
+const LAYOUT_WIDTH = '1500px'
 
 const HomeLayout = ({ children }: PropsWithChildren) => (
   <BaseLayout>
-    <FlashMessages />
     <HomeNavbar width={LAYOUT_WIDTH} />
 
     <Box
@@ -32,6 +30,6 @@ const HomeLayout = ({ children }: PropsWithChildren) => (
       </Box>
     </Box>
   </BaseLayout>
-);
+)
 
-export default HomeLayout;
+export default HomeLayout

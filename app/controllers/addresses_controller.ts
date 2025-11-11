@@ -5,94 +5,99 @@ import { createAddressValidator, updateAddressValidator } from '#validators/addr
 
 export default class AddressesController {
   /**
-   * Display a list of addresses for the authenticated user
+   * Liste pour la page Inertia
    */
   async index({ inertia, auth, request }: HttpContext) {
     await auth.check()
     const user = auth.user!
 
-    const page = request.input('page', 1)
+    const page = Number(request.input('page', 1))
+    const status = request.input('status', 'active') as 'active' | 'archived'
 
-    const addresses = await Address.query()
-      .where('userId', user.id)
-      .orderBy('name', 'asc')
-      .paginate(page, 25)
+    const query = Address.query().where('userId', user.id)
 
+    if (status === 'active') {
+      query.where('isActive', true)
+    } else if (status === 'archived') {
+      query.where('isActive', false)
+    }
+
+    const addresses = await query.orderBy('name', 'asc').paginate(page, 25)
     const { data, meta } = addresses.toJSON()
-    const addressesDto = data.map((item) => addressToDto(item as Address))
+    const addressesDto = (data as any[]).map((item) => addressToDto(item as Address))
 
-    return inertia.render('addresses/index', { addresses: addressesDto, meta })
+    return inertia.render('addresses/index', { addresses: addressesDto, meta, status })
   }
 
   /**
-   * Show the form to create a new address
-   */
-  async create({ inertia }: HttpContext) {
-    return inertia.render('addresses/create')
-  }
-
-  /**
-   * Store a new address for the authenticated user
+   * Création (API JSON)
    */
   async store({ request, auth, response }: HttpContext) {
     await auth.check()
     const user = auth.user!
-    console.log(user)
-    console.log(request.body())
+
     try {
-      const data = await request.validateUsing(createAddressValidator)
-      const address = await Address.create({ ...data, userId: user.id })
+      const payload = await request.validateUsing(createAddressValidator)
+
+      const address = await Address.create({
+        name: payload.name,
+        address: payload.address,
+        postalCode: payload.postal_code,
+        city: payload.city,
+        isHome: payload.is_home ?? false,
+        isActive: payload.is_active ?? true,
+        checked: payload.checked ?? false,
+        used: false,
+        userId: user.id,
+      })
+
       return response.created(addressToDto(address))
     } catch (error) {
-      console.log("Ereur lors de la création de l'adresse :", error)
+      console.log("Erreur lors de la création de l'adresse :", error)
       return response.badRequest({ message: (error as Error).message })
     }
   }
 
   /**
-   * Show a specific address (only if owned by user)
-   */
-  async show({ params, auth, response, inertia }: HttpContext) {
-    await auth.check()
-    const user = auth.user!
-
-    const address = await Address.find(params.id)
-    if (!address || address.userId !== user.id) {
-      return response.unauthorized('Not allowed')
-    }
-
-    return inertia.render('addresses/show', { address: addressToDto(address) })
-  }
-
-  /**
-   * Show form to edit an address
-   */
-  async edit({ params, auth, response, inertia }: HttpContext) {
-    await auth.check()
-    const user = auth.user!
-
-    const address = await Address.find(params.id)
-    if (!address || address.userId !== user.id) {
-      return response.unauthorized('Not allowed')
-    }
-
-    return inertia.render('addresses/edit', { address: addressToDto(address) })
-  }
-
-  /**
-   * Update an address (only if owned by user)
+   * Update (API JSON)
+   * - si address.used === true : seul le name peut changer
    */
   async update({ params, request, auth, response }: HttpContext) {
     await auth.check()
     const user = auth.user!
+
     try {
       const address = await Address.find(params.id)
       if (!address || address.userId !== user.id) {
         return response.unauthorized('Not allowed')
       }
 
-      const data = await request.validateUsing(updateAddressValidator)
-      address.merge(data)
+      const payload = await request.validateUsing(updateAddressValidator)
+
+      // On prépare l'objet final qu'on veut appliquer
+      const nextValues = {
+        name: payload.name,
+        address: payload.address,
+        postalCode: payload.postal_code,
+        city: payload.city,
+        isHome: payload.is_home ?? address.isHome,
+        isActive: payload.is_active ?? address.isActive,
+        checked: payload.checked ?? address.checked,
+      }
+
+      if (address.used) {
+        const sameAddress = nextValues.address === address.address
+        const samePostal = nextValues.postalCode === address.postalCode
+        const sameCity = nextValues.city === address.city
+
+        if (!sameAddress || !samePostal || !sameCity) {
+          return response.badRequest({
+            message: 'Cette adresse est utilisée dans un trajet : seul le nom peut être modifié.',
+          })
+        }
+      }
+
+      address.merge(nextValues)
       await address.save()
 
       return response.ok(addressToDto(address))
@@ -102,19 +107,25 @@ export default class AddressesController {
   }
 
   /**
-   * Delete an address (only if owned by user)
+   * Suppression (interdite si used = true)
    */
   async destroy({ params, auth, response }: HttpContext) {
     await auth.check()
     const user = auth.user!
+
     try {
       const address = await Address.find(params.id)
       if (!address || address.userId !== user.id) {
         return response.unauthorized('Not allowed')
       }
 
-      await address.delete()
+      if (address.used) {
+        return response.badRequest({
+          message: 'Impossible de supprimer une adresse utilisée dans un trajet.',
+        })
+      }
 
+      await address.delete()
       return response.noContent()
     } catch (error) {
       return response.badRequest({ message: (error as Error).message })
@@ -122,27 +133,38 @@ export default class AddressesController {
   }
 
   /**
-   * Search addresses for the authenticated user
+   * Recherche dynamique
+   * GET /api/addresses/search?q=...&active=true|false
+   * -> dès la 1ère lettre, filtre les noms/adresses/villes commençant par ce préfixe
    */
   async search({ request, auth }: HttpContext) {
     await auth.check()
     const user = auth.user!
 
-    const query = request.input('q', '').trim()
-    if (!query) {
-      return []
-    }
+    const q = (request.input('q', '') as string).trim()
+    if (!q) return []
 
-    const term = `%${query}%`
+    const activeParam = request.input('active') // "true" | "false" | undefined
 
-    const results = await Address.query()
+    const prefix = `${q}%`
+
+    const query = Address.query()
       .where('userId', user.id)
       .andWhere((qb) => {
-        qb.orWhereILike('name', term)
-        qb.orWhereILike('address', term)
-        qb.orWhereILike('city', term)
+        qb.orWhereILike('name', prefix)
+        qb.orWhereILike('address', prefix)
+        qb.orWhereILike('city', prefix)
       })
-      .limit(10)
+      .orderBy('name', 'asc')
+      .limit(20)
+
+    if (activeParam === 'true') {
+      query.where('isActive', true)
+    } else if (activeParam === 'false') {
+      query.where('isActive', false)
+    }
+
+    const results = await query
 
     return results.map(addressToDto)
   }
