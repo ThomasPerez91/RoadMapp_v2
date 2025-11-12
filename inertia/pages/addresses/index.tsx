@@ -7,8 +7,6 @@ import {
   Button,
   Badge,
   Group,
-  Menu,
-  ActionIcon,
   Paper,
   Stack,
   Title,
@@ -17,23 +15,17 @@ import {
   Divider,
 } from '@mantine/core'
 import { useMediaQuery, useDebouncedValue } from '@mantine/hooks'
-import {
-  TbDots,
-  TbEdit,
-  TbTrash,
-  TbPlayerPause,
-  TbPlayerPlay,
-  TbMapPin,
-  TbArchive,
-} from 'react-icons/tb'
+import { TbMapPin, TbArchive } from 'react-icons/tb'
 import { useState, useEffect, useMemo } from 'react'
 import { DataTable } from '~/components/generics/data_table'
 import UserLayout from '~/layouts/user_layout'
 import type { Address, PaginationMeta } from '~/types/app'
 import { useAppDrawer } from '~/components/drawer'
 import { AddressForm } from '~/components/addresses/address_form'
+import { AddressActionMenu } from '~/components/addresses/address_action_menu'
 import { FlashMessages } from '~/components/flash_messages'
 import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal'
+import { deleteAddress, searchAddresses, toggleAddressActive } from '~/services/addresses'
 
 interface IndexProps {
   addresses: Address[]
@@ -46,13 +38,6 @@ function normalize(str: string) {
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase()
-}
-
-function getCsrfTokenFromCookie(): string {
-  if (typeof document === 'undefined') return ''
-  const cookie = document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='))
-  if (!cookie) return ''
-  return decodeURIComponent(cookie.split('=')[1] || '')
 }
 
 function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps) {
@@ -100,9 +85,8 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
     }
     const active = status === 'active'
 
-    fetch(`/api/addresses/search?q=${encodeURIComponent(q)}&active=${active ? 'true' : 'false'}`)
-      .then((r) => r.json())
-      .then((list: Address[]) => {
+    searchAddresses(q, active)
+      .then((list) => {
         const nq = normalize(q)
         const starts = list.filter((a) => normalize(a.name).startsWith(nq))
         const others = list.filter((a) => !normalize(a.name).startsWith(nq))
@@ -145,29 +129,7 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
   const toggleActive = async (addr: Address) => {
     setFlash(null)
     try {
-      const csrfToken = getCsrfTokenFromCookie()
-
-      const res = await fetch(`/api/addresses/${addr.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-          'X-XSRF-TOKEN': csrfToken,
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          name: addr.name,
-          address: addr.address,
-          postal_code: addr.postalCode,
-          city: addr.city,
-          is_active: !addr.isActive,
-        }),
-      })
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        throw new Error(data?.message || 'Erreur inconnue')
-      }
+      await toggleAddressActive(addr)
 
       setFlash({
         type: 'success',
@@ -190,19 +152,7 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
     if (!deleteId) return
     setConfirmLoading(true)
     try {
-      const csrfToken = getCsrfTokenFromCookie()
-      const res = await fetch(`/api/addresses/${deleteId}`, {
-        method: 'DELETE',
-        headers: {
-          Accept: 'application/json',
-          'X-XSRF-TOKEN': csrfToken,
-        },
-        credentials: 'include',
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        throw new Error(data?.message || 'Erreur inconnue')
-      }
+      await deleteAddress(deleteId)
       setFlash({ type: 'success', message: 'Adresse supprimée' })
       router.reload({ only: ['addresses', 'meta'] })
     } catch (error: any) {
@@ -289,51 +239,13 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
                       </Badge>
                     </Group>
                   </div>
-                  <Menu withinPortal shadow="md">
-                    <Menu.Target>
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label="Actions"
-                        data-used={row.used ? 'true' : 'false'}
-                      >
-                        <TbDots size={18} />
-                      </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown
-                      style={{
-                        background:
-                          'linear-gradient(180deg, rgba(7,14,24,.92), rgba(7,14,24,.80))',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(255,255,255,.06)',
-                      }}
-                    >
-                      <Menu.Item leftSection={<TbEdit size={14} />} onClick={() => openUpdate(row)}>
-                        Mettre à jour
-                      </Menu.Item>
-                      <Menu.Item
-                        leftSection={
-                          row.isActive ? <TbPlayerPause size={14} /> : <TbPlayerPlay size={14} />
-                        }
-                        onClick={() => toggleActive(row)}
-                      >
-                        {row.isActive ? 'Archiver' : 'Restaurer'}
-                      </Menu.Item>
-
-                      {!row.used && (
-                        <>
-                          <Menu.Divider />
-                          <Menu.Item
-                            color="red"
-                            leftSection={<TbTrash size={14} />}
-                            onClick={() => askDelete(row.id)} // 👈 use modal
-                          >
-                            Supprimer
-                          </Menu.Item>
-                        </>
-                      )}
-                    </Menu.Dropdown>
-                  </Menu>
+                  <AddressActionMenu
+                    address={row}
+                    onEdit={openUpdate}
+                    onToggleActive={toggleActive}
+                    onDelete={(addr) => askDelete(addr.id)}
+                    iconSize={18}
+                  />
                 </Group>
               </Paper>
             ))}
@@ -358,51 +270,13 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
                 key: 'actions',
                 label: '',
                 render: (row) => (
-                  <Menu withinPortal shadow="md" position="bottom-end" offset={4}>
-                    <Menu.Target>
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        aria-label="Actions"
-                        data-used={row.used ? 'true' : 'false'}
-                      >
-                        <TbDots size={16} />
-                      </ActionIcon>
-                    </Menu.Target>
-                    <Menu.Dropdown
-                      style={{
-                        background:
-                          'linear-gradient(180deg, rgba(7,14,24,.92), rgba(7,14,24,.80))',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(255,255,255,.06)',
-                      }}
-                    >
-                      <Menu.Item leftSection={<TbEdit size={14} />} onClick={() => openUpdate(row)}>
-                        Mettre à jour
-                      </Menu.Item>
-                      <Menu.Item
-                        leftSection={
-                          row.isActive ? <TbPlayerPause size={14} /> : <TbPlayerPlay size={14} />
-                        }
-                        onClick={() => toggleActive(row)}
-                      >
-                        {row.isActive ? 'Archiver' : 'Restaurer'}
-                      </Menu.Item>
-
-                      {!row.used && (
-                        <>
-                          <Menu.Divider />
-                          <Menu.Item
-                            color="red"
-                            leftSection={<TbTrash size={14} />}
-                            onClick={() => askDelete(row.id)} // 👈 use modal
-                          >
-                            Supprimer
-                          </Menu.Item>
-                        </>
-                      )}
-                    </Menu.Dropdown>
-                  </Menu>
+                  <AddressActionMenu
+                    address={row}
+                    onEdit={openUpdate}
+                    onToggleActive={toggleActive}
+                    onDelete={(addr) => askDelete(addr.id)}
+                    menuProps={{ position: 'bottom-end', offset: 4 }}
+                  />
                 ),
               },
             ]}
