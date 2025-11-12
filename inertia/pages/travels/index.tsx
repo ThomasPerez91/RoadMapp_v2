@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { DataTable } from '~/components/generics/data_table'
 import UserLayout from '~/layouts/user_layout'
 import type { PaginationMeta } from '~/types/app'
+import { PageInfoButton } from '~/components/page_info'
 
 type TravelRow = {
   id: number
@@ -35,8 +36,11 @@ function Index({ travels, meta }: IndexProps) {
     <>
       <Head title="Trajets" />
       <Container py="lg">
-        <Group justify="space-between" mb="md">
-          <Title order={2}>Trajets</Title>
+        <Group justify="space-between" mb="md" align="center">
+          <Group gap="xs" align="center">
+            <Title order={2}>Trajets</Title>
+            <PageInfoButton page="travels" ariaLabel="Afficher l’aide sur les trajets" />
+          </Group>
         </Group>
 
         <DataTable
