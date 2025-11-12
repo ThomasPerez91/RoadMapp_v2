@@ -19,6 +19,7 @@ import UserLayout from '~/layouts/user_layout'
 import type { Address } from '~/types/app'
 import { AddressForm } from '~/components/addresses/address_form'
 import { FlashMessages } from '~/components/flash_messages'
+import { updateUserProfile } from '~/services/user'
 
 interface SettingsUser {
   id: number
@@ -34,13 +35,6 @@ interface SettingsProps {
 }
 
 type Section = 'profile' | 'home'
-
-function getCsrfTokenFromCookie(): string {
-  if (typeof document === 'undefined') return ''
-  const cookie = document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='))
-  if (!cookie) return ''
-  return decodeURIComponent(cookie.split('=')[1] || '')
-}
 
 function Settings({ user, homeAddress }: SettingsProps) {
   const [section, setSection] = useState<Section>('profile')
@@ -59,23 +53,7 @@ function Settings({ user, homeAddress }: SettingsProps) {
   const handleProfileSubmit = async (values: typeof profileForm.values) => {
     setFlash(null)
     try {
-      const csrfToken = getCsrfTokenFromCookie()
-      const res = await fetch('/api/user/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-XSRF-TOKEN': csrfToken,
-        },
-        credentials: 'include',
-        body: JSON.stringify(values),
-      })
-
-      const data = await res.json().catch(() => null)
-
-      if (!res.ok) {
-        throw new Error(data?.message || 'Erreur inconnue')
-      }
+      await updateUserProfile(values)
 
       router.reload({
         only: ['user'],

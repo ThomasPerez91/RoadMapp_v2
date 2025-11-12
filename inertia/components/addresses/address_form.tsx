@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { FlashMessages } from '~/components/flash_messages'
 import { useAppDrawer } from '~/components/drawer'
 import type { Address } from '~/types/app'
+import { saveAddress } from '~/services/addresses'
 
 interface AddressFormValues {
   name: string
@@ -18,13 +19,6 @@ interface AddressFormProps {
   address?: Address
   /** Permet d’ajouter des champs comme is_home, is_active, etc. */
   extraPayload?: Record<string, unknown>
-}
-
-function getCsrfTokenFromCookie(): string {
-  if (typeof document === 'undefined') return ''
-  const cookie = document.cookie.split('; ').find((row) => row.startsWith('XSRF-TOKEN='))
-  if (!cookie) return ''
-  return decodeURIComponent(cookie.split('=')[1] || '')
 }
 
 export function AddressForm({ onSuccess, address, extraPayload }: AddressFormProps) {
@@ -55,28 +49,10 @@ export function AddressForm({ onSuccess, address, extraPayload }: AddressFormPro
     setLoading(true)
 
     try {
-      const csrfToken = getCsrfTokenFromCookie()
-
-      const payload = {
+      await saveAddress(isEdit ? address!.id : null, {
         ...values,
         ...(extraPayload || {}),
-      }
-
-      const res = await fetch(isEdit ? `/api/addresses/${address!.id}` : '/api/addresses', {
-        method: isEdit ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'X-XSRF-TOKEN': csrfToken,
-        },
-        body: JSON.stringify(payload),
-        credentials: 'include',
       })
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        throw new Error(data?.message || 'Erreur inconnue')
-      }
 
       onSuccess()
       close()
