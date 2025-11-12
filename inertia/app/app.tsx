@@ -7,9 +7,6 @@ import { hydrateRoot } from 'react-dom/client'
 import { createInertiaApp } from '@inertiajs/react'
 import { resolvePageComponent } from '@adonisjs/inertia/helpers'
 
-import { MantineProvider } from '@mantine/core'
-import { DatesProvider } from '@mantine/dates'
-
 import dayjs from 'dayjs'
 import 'dayjs/locale/fr'
 dayjs.locale('fr')
@@ -20,6 +17,7 @@ const appName = import.meta.env.VITE_APP_NAME || 'RoadMapp'
 
 createInertiaApp({
   progress: { color: 'var(--app-gradient)', delay: 100 },
+
   title: (title) => `${title} - ${appName}`,
 
   resolve: async (name) => {
@@ -28,18 +26,11 @@ createInertiaApp({
       import.meta.glob('../pages/**/*.tsx')
     )
     currentPage.default.layout =
-      currentPage.default.layout || ((p: any) => <HomeLayout children={p} />)
+      currentPage.default.layout || ((p: any) => <HomeLayout>{p}</HomeLayout>)
     return currentPage
   },
 
   setup({ el, App, props }) {
-    hydrateRoot(
-      el,
-      <MantineProvider defaultColorScheme="dark">
-        <DatesProvider settings={{ locale: 'fr', firstDayOfWeek: 1, weekendDays: [0, 6] }}>
-          <App {...props} />
-        </DatesProvider>
-      </MantineProvider>
-    )
+    hydrateRoot(el, <App {...props} />)
   },
 })
