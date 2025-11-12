@@ -4,6 +4,15 @@ import Leg from '#models/leg'
 import { GoogleMetricsService, type Metrics } from '#services/google_metrics'
 import { metricsQueryValidator } from '#validators/metrics'
 
+type AddressWithCoordinates = Address & { lat?: number | null; lng?: number | null }
+
+function resolveLocation(address: AddressWithCoordinates) {
+  if (address.lat && address.lng) {
+    return `${address.lat},${address.lng}`
+  }
+  return address.address
+}
+
 export default class MetricsController {
 
   async show({ request, response, auth }: HttpContext) {
@@ -19,8 +28,8 @@ export default class MetricsController {
     if (!start || !end) return response.forbidden({ message: 'Addresses not accessible' })
 
     const existing = await Leg.query()
-      .where('startId', startId)
-      .andWhere('endId', endId)
+      .where('start_id', startId)
+      .andWhere('end_id', endId)
       .orderBy('id', 'desc')
       .first()
 
@@ -30,12 +39,12 @@ export default class MetricsController {
         duration: existing.duration,
         distanceToString: existing.distanceToString,
         durationToString: existing.durationToString,
-      } as any
+      }
       return response.ok(data)
     }
 
-    const origin = start.lat && start.lng ? `${start.lat},${start.lng}` : start.address
-    const destination = end.lat && end.lng ? `${end.lat},${end.lng}` : end.address
+    const origin = resolveLocation(start as AddressWithCoordinates)
+    const destination = resolveLocation(end as AddressWithCoordinates)
     const data = await GoogleMetricsService.forAddresses(origin, destination)
 
     return response.ok(data)
