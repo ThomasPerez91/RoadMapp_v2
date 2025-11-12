@@ -21,12 +21,14 @@ export class GoogleMetricsService {
   static async forAddresses(origin: string, destination: string): Promise<Metrics> {
     const key = env.get('GOOGLE_METRICS_API_KEY')
     if (!key) throw new Error('GOOGLE_METRICS_API_KEY is not configured')
+
     const url = new URL('https://maps.googleapis.com/maps/api/distancematrix/json')
     url.searchParams.set('key', key)
     url.searchParams.set('origins', origin)
     url.searchParams.set('destinations', destination)
     url.searchParams.set('units', 'metric')
     url.searchParams.set('mode', 'driving')
+    url.searchParams.set('language', 'fr')
 
     const res = await fetch(url.toString())
     if (!res.ok) throw new Error(`Google Metrics error: ${res.status}`)
