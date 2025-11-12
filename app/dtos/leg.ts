@@ -13,11 +13,11 @@ export interface LegDto {
 export function legToDto(leg: Leg): LegDto {
   return {
     id: leg.id,
-    startId: leg.start_id,
-    endId: leg.end_id,
+    startId: leg.startId,
+    endId: leg.endId,
     distance: leg.distance,
     duration: leg.duration,
-    distanceToString: leg.distance_to_string,
-    durationToString: leg.duration_to_string,
+    distanceToString: leg.distanceToString,
+    durationToString: leg.durationToString,
   }
 }

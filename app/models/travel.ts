@@ -11,22 +11,22 @@ export default class Travel extends BaseModel {
   @column()
   declare date: Date
 
-  @column()
-  declare user_id: number
+  @column({ columnName: 'user_id' })
+  declare userId: number
 
-  @column()
-  declare distance_to_string: string
+  @column({ columnName: 'distance_to_string' })
+  declare distanceToString: string
 
   @column()
   declare distance: number
 
-  @column.dateTime({ autoCreate: true })
-  declare created_at: DateTime
+  @column.dateTime({ autoCreate: true, columnName: 'created_at' })
+  declare createdAt: DateTime
 
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updated_at: DateTime
+  @column.dateTime({ autoCreate: true, autoUpdate: true, columnName: 'updated_at' })
+  declare updatedAt: DateTime
 
-  @belongsTo(() => User)
+  @belongsTo(() => User, { foreignKey: 'userId' })
   declare user: BelongsTo<typeof User>
 
   @hasMany(() => Leg)
