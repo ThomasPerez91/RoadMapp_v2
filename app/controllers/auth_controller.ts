@@ -37,17 +37,17 @@ export default class AuthController {
     try {
       const socialUser = await social.user()
 
-      const existingUser = await User.findBy('email', socialUser.email)
+      let user = await User.findBy('email', socialUser.email)
 
-      if (existingUser && existingUser.oauth_id !== String(socialUser.id)) {
+      // Si l'email existe déjà mais lié à un autre compte/provider
+      if (user && user.oauth_id && user.oauth_id !== String(socialUser.id)) {
         return response.unauthorized(
           `This email is already linked to a different provider. Please use the correct one.`
         )
       }
 
-      const user = await User.updateOrCreate(
-        { email: socialUser.email },
-        {
+      if (!user) {
+        user = await User.create({
           oauth_id: socialUser.id,
           oauth_provider: provider,
           name: socialUser.name,
@@ -59,8 +59,20 @@ export default class AuthController {
           token_type: socialUser.token.type,
           expire_at: 'expire_at' in socialUser.token ? socialUser.token.expire_at : null,
           expire_in: 'expire_in' in socialUser.token ? socialUser.token.expire_in : null,
-        }
-      )
+        })
+      } else {
+        user.merge({
+          oauth_id: socialUser.id,
+          oauth_provider: provider,
+          email_verification: socialUser.emailVerificationState,
+          token: socialUser.token.token,
+          token_type: socialUser.token.type,
+          expire_at: 'expire_at' in socialUser.token ? socialUser.token.expire_at : user.expire_at,
+          expire_in: 'expire_in' in socialUser.token ? socialUser.token.expire_in : user.expire_in,
+        })
+
+        await user.save()
+      }
 
       await auth.use('web').login(user)
 

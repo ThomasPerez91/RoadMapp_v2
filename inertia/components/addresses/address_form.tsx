@@ -16,6 +16,8 @@ interface AddressFormValues {
 interface AddressFormProps {
   onSuccess: () => void
   address?: Address
+  /** Permet d’ajouter des champs comme is_home, is_active, etc. */
+  extraPayload?: Record<string, unknown>
 }
 
 function getCsrfTokenFromCookie(): string {
@@ -25,7 +27,7 @@ function getCsrfTokenFromCookie(): string {
   return decodeURIComponent(cookie.split('=')[1] || '')
 }
 
-export function AddressForm({ onSuccess, address }: AddressFormProps) {
+export function AddressForm({ onSuccess, address, extraPayload }: AddressFormProps) {
   const { close } = useAppDrawer()
   const [flash, setFlash] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [loading, setLoading] = useState(false)
@@ -55,6 +57,11 @@ export function AddressForm({ onSuccess, address }: AddressFormProps) {
     try {
       const csrfToken = getCsrfTokenFromCookie()
 
+      const payload = {
+        ...values,
+        ...(extraPayload || {}),
+      }
+
       const res = await fetch(isEdit ? `/api/addresses/${address!.id}` : '/api/addresses', {
         method: isEdit ? 'PUT' : 'POST',
         headers: {
@@ -62,7 +69,7 @@ export function AddressForm({ onSuccess, address }: AddressFormProps) {
           'Accept': 'application/json',
           'X-XSRF-TOKEN': csrfToken,
         },
-        body: JSON.stringify(values),
+        body: JSON.stringify(payload),
         credentials: 'include',
       })
 
@@ -85,25 +92,13 @@ export function AddressForm({ onSuccess, address }: AddressFormProps) {
       <FlashMessages flash={flash} />
       <Stack>
         <TextInput label="Nom" withAsterisk {...form.getInputProps('name')} />
-
-        <TextInput
-          label="Adresse"
-          withAsterisk={!isUsed}
-          disabled={isUsed}
-          {...form.getInputProps('address')}
-        />
+        <TextInput label="Adresse" withAsterisk={!isUsed} {...form.getInputProps('address')} />
         <TextInput
           label="Code postal"
           withAsterisk={!isUsed}
-          disabled={isUsed}
           {...form.getInputProps('postal_code')}
         />
-        <TextInput
-          label="Ville"
-          withAsterisk={!isUsed}
-          disabled={isUsed}
-          {...form.getInputProps('city')}
-        />
+        <TextInput label="Ville" withAsterisk={!isUsed} {...form.getInputProps('city')} />
 
         <Button
           type="submit"

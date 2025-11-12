@@ -14,7 +14,7 @@ export default class AddressesController {
     const page = Number(request.input('page', 1))
     const status = request.input('status', 'active') as 'active' | 'archived'
 
-    const query = Address.query().where('userId', user.id)
+    const query = Address.query().where('userId', user.id).andWhere('isHome', false) // 👉 on exclut l’adresse de départ
 
     if (status === 'active') {
       query.where('isActive', true)
@@ -38,6 +38,14 @@ export default class AddressesController {
 
     try {
       const payload = await request.validateUsing(createAddressValidator)
+
+      if (payload.is_home === true) {
+        await Address.query()
+          .where('userId', user.id)
+          .andWhere('isHome', true)
+          // 👉 colonne camelCase : isActive
+          .update({ isHome: false, isActive: true })
+      }
 
       const address = await Address.create({
         name: payload.name,
@@ -150,6 +158,7 @@ export default class AddressesController {
 
     const query = Address.query()
       .where('userId', user.id)
+      .andWhere('isHome', false) // 👉 on exclut aussi l’adresse de départ ici
       .andWhere((qb) => {
         qb.orWhereILike('name', prefix)
         qb.orWhereILike('address', prefix)
