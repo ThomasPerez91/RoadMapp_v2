@@ -57,9 +57,9 @@ export default class User extends BaseModel {
   @hasMany(() => Travel)
   declare travels: HasMany<typeof Travel>
 
-  @hasMany(() => Leg, { foreignKey: 'start_address_id' })
+  @hasMany(() => Leg, { foreignKey: 'startId' })
   declare departures: HasMany<typeof Leg>
 
-  @hasMany(() => Leg, { foreignKey: 'end_address_id' })
+  @hasMany(() => Leg, { foreignKey: 'endId' })
   declare arrivals: HasMany<typeof Leg>
 }

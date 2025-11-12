@@ -12,6 +12,6 @@ export function travelToDto(travel: Travel): TravelDto {
     id: travel.id,
     date: travel.date.toISOString().split('T')[0],
     distance: travel.distance,
-    distanceToString: travel.distance_to_string,
+    distanceToString: travel.distanceToString,
   }
 }

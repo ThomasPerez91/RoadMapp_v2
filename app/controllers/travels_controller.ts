@@ -3,30 +3,92 @@ import Travel from '#models/travel'
 import Leg from '#models/leg'
 import Address from '#models/address'
 import { travelToDto } from '#dtos/travel'
-import { createTravelValidator, updateTravelValidator } from '#validators/travels'
+import { createTravelValidator, updateTravelValidator } from '#validators/travel'
 import type { LegDto } from '#dtos/leg'
-import { db } from '@adonisjs/lucid/services'
+import db from '@adonisjs/lucid/services/db'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 function formatKm(meters: number) {
+  if (meters === 0) {
+    return '0 km'
+  }
+
   const km = meters / 1000
   return km >= 1 ? `${km.toFixed(1)} km` : `${meters} m`
 }
 
 type LegPayload = Omit<LegDto, 'id'>
 
-async function markAddressesUsed(addressIds: number[], used: boolean) {
-  if (addressIds.length === 0) return
-  await Address.query().whereIn('id', addressIds).update({ used })
+type LegBatch = {
+  records: Array<{
+    travelId: number
+    startId: number
+    endId: number
+    distance: number
+    duration: number
+    distanceToString: string
+    durationToString: string
+  }>
+  totalDistance: number
+  addressIds: Set<number>
 }
 
-async function recomputeAddressesUsed(addressIds: number[]) {
-  if (addressIds.length === 0) return
-  for (const id of addressIds) {
-    const exists = await Leg.query()
-      .where('start_id', id)
-      .orWhere('end_id', id)
-      .first()
-    await Address.query().where('id', id).update({ used: !!exists })
+function buildLegBatch(travelId: number, legs: LegPayload[]): LegBatch {
+  const batch: LegBatch = {
+    records: [],
+    totalDistance: 0,
+    addressIds: new Set<number>(),
+  }
+
+  for (const leg of legs) {
+    batch.totalDistance += leg.distance
+    batch.addressIds.add(leg.startId)
+    batch.addressIds.add(leg.endId)
+    batch.records.push({
+      travelId,
+      startId: leg.startId,
+      endId: leg.endId,
+      distance: leg.distance,
+      duration: leg.duration,
+      distanceToString: leg.distanceToString,
+      durationToString: leg.durationToString,
+    })
+  }
+
+  return batch
+}
+
+async function markAddressesAsUsed(addressIds: Iterable<number>, client?: TransactionClientContract) {
+  const ids = Array.from(new Set(addressIds))
+  if (!ids.length) return
+  const query = client ? Address.query({ client }) : Address.query()
+  await query.whereIn('id', ids).andWhere('used', false).update({ used: true })
+}
+
+async function recomputeAddressesUsed(addressIds: Iterable<number>, client?: TransactionClientContract) {
+  const ids = Array.from(new Set(addressIds))
+  if (!ids.length) return
+
+  const legQuery = client ? Leg.query({ client }) : Leg.query()
+  const legs = await legQuery
+    .where((builder) => {
+      builder.whereIn('start_id', ids).orWhereIn('end_id', ids)
+    })
+
+  const idsSet = new Set(ids)
+  const usedIds = new Set<number>()
+
+  for (const leg of legs) {
+    if (idsSet.has(leg.startId)) usedIds.add(leg.startId)
+    if (idsSet.has(leg.endId)) usedIds.add(leg.endId)
+  }
+
+  const addressQuery = client ? Address.query({ client }) : Address.query()
+  await addressQuery.whereIn('id', ids).update({ used: false })
+
+  if (usedIds.size) {
+    const reactivationQuery = client ? Address.query({ client }) : Address.query()
+    await reactivationQuery.whereIn('id', Array.from(usedIds)).update({ used: true })
   }
 }
 
@@ -42,16 +104,16 @@ export default class TravelsController {
       .orderBy('date', 'desc')
       .paginate(page, perPage)
 
-    const json = pagination.toJSON()
-    const items = (json.data as Travel[]).map(travelToDto)
+    const serialized = pagination.serialize()
+    const items = (serialized.data as Travel[]).map(travelToDto)
 
     return inertia.render('travels/index', {
       travels: items,
       meta: {
-        total: json.total,
-        perPage: json.perPage,
-        currentPage: json.currentPage,
-        lastPage: json.lastPage,
+        total: serialized.meta.total,
+        perPage: serialized.meta.perPage,
+        currentPage: serialized.meta.currentPage,
+        lastPage: serialized.meta.lastPage,
       },
     })
   }
@@ -80,8 +142,8 @@ export default class TravelsController {
 
     const picksIds: number[] = []
     if (travel.legs.length > 0) {
-      picksIds.push(travel.legs[0].start_id)
-      for (const lg of travel.legs) picksIds.push(lg.end_id)
+      picksIds.push(travel.legs[0].startId)
+      for (const lg of travel.legs) picksIds.push(lg.endId)
     }
 
     return inertia.render('travels/edit', {
@@ -102,38 +164,25 @@ export default class TravelsController {
     const trx = await db.transaction()
     try {
       const travel = await Travel.create({
-        user_id: user.id,
+        userId: user.id,
         date: new Date(payload.date),
         distance: 0,
-        distance_to_string: '0 km',
+        distanceToString: '0 km',
       }, { client: trx })
 
-      let total = 0
-      const involvedAddressIds = new Set<number>()
+      travel.useTransaction(trx)
 
-      for (const leg of payload.legs as LegPayload[]) {
-        await Leg.create({
-          travel_id: travel.id,
-          start_id: leg.startId,
-          end_id: leg.endId,
-          distance: leg.distance,
-          duration: leg.duration,
-          distance_to_string: leg.distanceToString,
-          duration_to_string: leg.durationToString,
-        }, { client: trx })
-        total += leg.distance
-        involvedAddressIds.add(leg.startId)
-        involvedAddressIds.add(leg.endId)
+      const { records, totalDistance, addressIds } = buildLegBatch(travel.id, payload.legs as LegPayload[])
+
+      if (records.length) {
+        await Leg.createMany(records, { client: trx })
       }
 
-      travel.distance = total
-      travel.distance_to_string = formatKm(total)
-      await travel.save({ client: trx })
+      travel.distance = totalDistance
+      travel.distanceToString = formatKm(totalDistance)
+      await travel.save()
 
-      await Address.query({ client: trx })
-        .whereIn('id', Array.from(involvedAddressIds))
-        .andWhere('used', false)
-        .update({ used: true })
+      await markAddressesAsUsed(addressIds, trx)
 
       await trx.commit()
       return response.created({ id: travel.id })
@@ -160,13 +209,15 @@ export default class TravelsController {
         return response.notFound()
       }
 
+      travel.useTransaction(trx)
+
       const oldLegs = await Leg.query({ client: trx })
         .where('travel_id', travel.id)
 
       const oldAddressIds = new Set<number>()
       for (const l of oldLegs) {
-        oldAddressIds.add(l.start_id)
-        oldAddressIds.add(l.end_id)
+        oldAddressIds.add(l.startId)
+        oldAddressIds.add(l.endId)
       }
 
       if (payload.date) {
@@ -178,36 +229,23 @@ export default class TravelsController {
       if (payload.legs?.length) {
         await Leg.query({ client: trx }).where('travel_id', travel.id).delete()
 
-        total = 0
-        const newAddressIds = new Set<number>()
+        const { records, totalDistance, addressIds } = buildLegBatch(travel.id, payload.legs as LegPayload[])
 
-        for (const leg of payload.legs as LegPayload[]) {
-          await Leg.create({
-            travel_id: travel.id,
-            start_id: leg.startId,
-            end_id: leg.endId,
-            distance: leg.distance,
-            duration: leg.duration,
-            distance_to_string: leg.distanceToString,
-            duration_to_string: leg.durationToString,
-          }, { client: trx })
-          total += leg.distance
-          newAddressIds.add(leg.startId)
-          newAddressIds.add(leg.endId)
+        if (records.length) {
+          await Leg.createMany(records, { client: trx })
         }
 
-        await Address.query({ client: trx })
-          .whereIn('id', Array.from(newAddressIds))
-          .andWhere('used', false)
-          .update({ used: true })
+        total = totalDistance
 
-        const potentiallyUnused = Array.from(new Set([...oldAddressIds].filter(x => !newAddressIds.has(x))))
-        await recomputeAddressesUsed(potentiallyUnused)
+        await markAddressesAsUsed(addressIds, trx)
+
+        const removedAddressIds = Array.from(oldAddressIds).filter((id) => !addressIds.has(id))
+        await recomputeAddressesUsed(removedAddressIds, trx)
       }
 
       travel.distance = total
-      travel.distance_to_string = formatKm(total)
-      await travel.save({ client: trx })
+      travel.distanceToString = formatKm(total)
+      await travel.save()
 
       await trx.commit()
       return response.ok({ id: travel.id })
@@ -231,8 +269,8 @@ export default class TravelsController {
 
       const affectedAddressIds = new Set<number>()
       for (const l of legs) {
-        affectedAddressIds.add(l.start_id)
-        affectedAddressIds.add(l.end_id)
+        affectedAddressIds.add(l.startId)
+        affectedAddressIds.add(l.endId)
       }
 
       const deleted = await Travel.query({ client: trx })
@@ -245,7 +283,7 @@ export default class TravelsController {
         return response.notFound()
       }
 
-      await recomputeAddressesUsed(Array.from(affectedAddressIds))
+      await recomputeAddressesUsed(affectedAddressIds, trx)
 
       await trx.commit()
       return response.ok({ success: true })

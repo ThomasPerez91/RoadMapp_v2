@@ -8,20 +8,20 @@ export default class Leg extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
-  @column()
-  declare start_id: number
+  @column({ columnName: 'start_id' })
+  declare startId: number
 
-  @column()
-  declare end_id: number
+  @column({ columnName: 'end_id' })
+  declare endId: number
 
-  @column()
-  declare travel_id: number
+  @column({ columnName: 'travel_id' })
+  declare travelId: number
 
-  @column()
-  declare distance_to_string: string
+  @column({ columnName: 'distance_to_string' })
+  declare distanceToString: string
 
-  @column()
-  declare duration_to_string: string
+  @column({ columnName: 'duration_to_string' })
+  declare durationToString: string
 
   @column()
   declare distance: number
@@ -29,18 +29,18 @@ export default class Leg extends BaseModel {
   @column()
   declare duration: number
 
-  @column.dateTime({ autoCreate: true })
-  declare created_at: DateTime
+  @column.dateTime({ autoCreate: true, columnName: 'created_at' })
+  declare createdAt: DateTime
 
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
-  declare updated_at: DateTime
+  @column.dateTime({ autoCreate: true, autoUpdate: true, columnName: 'updated_at' })
+  declare updatedAt: DateTime
 
-  @belongsTo(() => Travel)
+  @belongsTo(() => Travel, { foreignKey: 'travelId' })
   declare travel: BelongsTo<typeof Travel>
 
-  @belongsTo(() => Address, { foreignKey: 'start_address_id' })
-  declare start_address: BelongsTo<typeof Address>
+  @belongsTo(() => Address, { foreignKey: 'startId' })
+  declare startAddress: BelongsTo<typeof Address>
 
-  @belongsTo(() => Address, { foreignKey: 'end_address_id' })
-  declare end_address: BelongsTo<typeof Address>
+  @belongsTo(() => Address, { foreignKey: 'endId' })
+  declare endAddress: BelongsTo<typeof Address>
 }
