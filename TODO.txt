@@ -1,0 +1,2 @@
+- Créer GOOGLE_METRICS_API_KEY=xxx dans le .env
+
