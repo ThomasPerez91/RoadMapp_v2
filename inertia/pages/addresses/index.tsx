@@ -33,11 +33,12 @@ import type { Address, PaginationMeta } from '~/types/app'
 import { useAppDrawer } from '~/components/drawer'
 import { AddressForm } from '~/components/addresses/address_form'
 import { FlashMessages } from '~/components/flash_messages'
+import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal' // 👈 NEW
 
 interface IndexProps {
   addresses: Address[]
   meta: PaginationMeta
-  status?: 'active' | 'archived' // <- injecté côté serveur
+  status?: 'active' | 'archived'
 }
 
 function normalize(str: string) {
@@ -69,19 +70,21 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
   const [results, setResults] = useState<Address[]>([])
   const [flash, setFlash] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
-  const hasSearch = debounced.trim().length > 0
+  // 👇 NEW: modal state for deletion
+  const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmLoading, setConfirmLoading] = useState(false)
 
+  const hasSearch = debounced.trim().length > 0
   const displayItems = useMemo(() => (hasSearch ? results : items), [hasSearch, results, items])
 
   useEffect(() => setItems(addresses), [addresses])
   useEffect(() => setPage(meta.currentPage), [meta.currentPage])
 
-  // Navigation helper
   const goto = (p: number, s: 'active' | 'archived') => {
     router.get('/addresses', { page: p, status: s }, { preserveState: true })
   }
 
-  // Toggle entre Actives / Archivées
   const toggleStatus = () => {
     const next = status === 'active' ? 'archived' : 'active'
     setStatus(next)
@@ -102,7 +105,6 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
       .then((r) => r.json())
       .then((list: Address[]) => {
         const nq = normalize(q)
-        // on remet en tête celles dont le nom commence par le terme (en plus du filtre back)
         const starts = list.filter((a) => normalize(a.name).startsWith(nq))
         const others = list.filter((a) => !normalize(a.name).startsWith(nq))
         setResults([...starts, ...others])
@@ -150,12 +152,11 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'X-XSRF-TOKEN': csrfToken,
         },
         credentials: 'include',
         body: JSON.stringify({
-          // on renvoie tout ce que le validator attend
           name: addr.name,
           address: addr.address,
           postal_code: addr.postalCode,
@@ -180,30 +181,39 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
     }
   }
 
-  const destroyAddress = async (id: number) => {
-    if (!confirm('Confirmer la suppression ?')) return
+  // 👇 NEW: ask via modal instead of window.confirm
+  const askDelete = (id: number) => {
     setFlash(null)
+    setDeleteId(id)
+    setConfirmOpen(true)
+  }
+
+  // 👇 NEW: confirm deletion (modal action)
+  const confirmDelete = async () => {
+    if (!deleteId) return
+    setConfirmLoading(true)
     try {
       const csrfToken = getCsrfTokenFromCookie()
-
-      const res = await fetch(`/api/addresses/${id}`, {
+      const res = await fetch(`/api/addresses/${deleteId}`, {
         method: 'DELETE',
         headers: {
-          'Accept': 'application/json',
+          Accept: 'application/json',
           'X-XSRF-TOKEN': csrfToken,
         },
         credentials: 'include',
       })
-
       if (!res.ok) {
         const data = await res.json().catch(() => null)
         throw new Error(data?.message || 'Erreur inconnue')
       }
-
       setFlash({ type: 'success', message: 'Adresse supprimée' })
       router.reload({ only: ['addresses', 'meta'] })
     } catch (error: any) {
       setFlash({ type: 'error', message: error.message })
+    } finally {
+      setConfirmLoading(false)
+      setConfirmOpen(false)
+      setDeleteId(null)
     }
   }
 
@@ -217,7 +227,6 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
         <Group justify="space-between" mb="sm" wrap="wrap">
           <Title order={3}>{title}</Title>
           <Group gap="md">
-            {/* Toggle Actives/Archivées */}
             <Button
               variant="light"
               radius="xl"
@@ -227,7 +236,6 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
               {status === 'active' ? 'Voir archivées' : 'Voir actives'}
             </Button>
 
-            {/* Ajouter visible sur la vue Actives (tu peux le laisser partout si tu veux) */}
             {status === 'active' && (
               <Button
                 radius="xl"
@@ -242,7 +250,6 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
           </Group>
         </Group>
 
-        {/* Recherche + suggestions live */}
         <Box pos="relative" mb="md">
           <TextInput
             placeholder={status === 'active' ? 'Recherche (actives)…' : 'Recherche (archivées)…'}
@@ -298,7 +305,8 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
                     </Menu.Target>
                     <Menu.Dropdown
                       style={{
-                        background: 'linear-gradient(180deg, rgba(7,14,24,.92), rgba(7,14,24,.80))',
+                        background:
+                          'linear-gradient(180deg, rgba(7,14,24,.92), rgba(7,14,24,.80))',
                         backdropFilter: 'blur(8px)',
                         border: '1px solid rgba(255,255,255,.06)',
                       }}
@@ -321,7 +329,7 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
                           <Menu.Item
                             color="red"
                             leftSection={<TbTrash size={14} />}
-                            onClick={() => destroyAddress(row.id)}
+                            onClick={() => askDelete(row.id)} // 👈 use modal
                           >
                             Supprimer
                           </Menu.Item>
@@ -359,14 +367,15 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
                         variant="subtle"
                         color="gray"
                         aria-label="Actions"
-                        data-used={row.used ? 'true' : 'false'} // 👈 attr DOM
+                        data-used={row.used ? 'true' : 'false'}
                       >
                         <TbDots size={16} />
                       </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown
                       style={{
-                        background: 'linear-gradient(180deg, rgba(7,14,24,.92), rgba(7,14,24,.80))',
+                        background:
+                          'linear-gradient(180deg, rgba(7,14,24,.92), rgba(7,14,24,.80))',
                         backdropFilter: 'blur(8px)',
                         border: '1px solid rgba(255,255,255,.06)',
                       }}
@@ -383,14 +392,13 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
                         {row.isActive ? 'Archiver' : 'Restaurer'}
                       </Menu.Item>
 
-                      {/* ❌ pas de bouton Supprimer si used */}
                       {!row.used && (
                         <>
                           <Menu.Divider />
                           <Menu.Item
                             color="red"
                             leftSection={<TbTrash size={14} />}
-                            onClick={() => destroyAddress(row.id)}
+                            onClick={() => askDelete(row.id)} // 👈 use modal
                           >
                             Supprimer
                           </Menu.Item>
@@ -418,6 +426,18 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
           />
         )}
       </Container>
+
+      {/* 👇 NEW: ConfirmDeleteModal instance */}
+      <ConfirmDeleteModal
+        opened={confirmOpen}
+        loading={confirmLoading}
+        onCancel={() => {
+          setConfirmOpen(false)
+          setDeleteId(null)
+        }}
+        onConfirm={confirmDelete}
+        description="Cette adresse sera définitivement supprimée."
+      />
     </>
   )
 }

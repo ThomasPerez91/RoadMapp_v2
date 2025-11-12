@@ -1,11 +1,11 @@
+import type Travel from '#models/travel'
+
 export interface TravelDto {
   id: number
   date: string
   distance: number
   distanceToString: string
 }
-
-import type Travel from '#models/travel'
 
 export function travelToDto(travel: Travel): TravelDto {
   return {

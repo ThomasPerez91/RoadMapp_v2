@@ -1,12 +1,20 @@
+// inertia/pages/travels/index.tsx
 import { Head, router } from '@inertiajs/react'
-import { Container, Pagination } from '@mantine/core'
-import { useState, useEffect } from 'react'
+import { Container, Group, Pagination, Title } from '@mantine/core'
+import { useEffect, useState } from 'react'
 import { DataTable } from '~/components/generics/data_table'
 import UserLayout from '~/layouts/user_layout'
-import type { Travel, PaginationMeta } from '~/types/app'
+import type { PaginationMeta } from '~/types/app'
+
+type TravelRow = {
+  id: number
+  date: string
+  distance: number
+  distanceToString: string
+}
 
 interface IndexProps {
-  travels: Travel[]
+  travels: TravelRow[]
   meta: PaginationMeta
 }
 
@@ -16,27 +24,34 @@ function Index({ travels, meta }: IndexProps) {
 
   useEffect(() => {
     setItems(travels)
-  }, [travels])
+    setPage(meta.currentPage)
+  }, [travels, meta.currentPage])
 
   const gotoPage = (p: number) => {
-    router.get('/travels', { page: p }, { preserveState: true })
+    router.get('/travels', { page: p }, { preserveState: true, preserveScroll: true })
   }
 
   return (
     <>
       <Head title="Trajets" />
-      <Container>
+      <Container py="lg">
+        <Group justify="space-between" mb="md">
+          <Title order={2}>Trajets</Title>
+        </Group>
+
         <DataTable
           columns={[
             {
               key: 'date',
               label: 'Date',
-              sortFn: (a: Travel, b: Travel) => a.date.localeCompare(b.date),
+              sortFn: (a: TravelRow, b: TravelRow) => a.date.localeCompare(b.date),
             },
             { key: 'distanceToString', label: 'Distance' },
           ]}
           data={items}
+          emptyMessage="Aucun trajet"
         />
+
         <Pagination
           total={meta.lastPage}
           value={page}
@@ -53,4 +68,3 @@ function Index({ travels, meta }: IndexProps) {
 
 Index.layout = (page: React.ReactNode) => <UserLayout>{page}</UserLayout>
 export default Index
-
