@@ -65,7 +65,6 @@ function formatKm(meters: number) {
   return km >= 1 ? `${km.toFixed(1)} km` : `${meters} m`
 }
 
-// --- Sortable item for picks list
 function SortablePick({
   id,
   label,
@@ -98,13 +97,11 @@ function Create({ addresses }: Props) {
   const [deleteOpened, setDeleteOpened] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
 
-  // DnD
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
   const [activeDrag, setActiveDrag] = useState<{ type: 'address' | 'pick'; id: number } | null>(null)
   const picksContainerId = 'picks-container'
   const addressesContainerId = 'addresses-container'
 
-  // Groupement des adresses par 1ère lettre
   const groups = useMemo(() => {
     const map = new Map<string, Address[]>()
     const sorted = [...addresses].sort((a, b) => a.name.localeCompare(b.name))
@@ -119,7 +116,6 @@ function Create({ addresses }: Props) {
 
   const homeAddress = useMemo(() => addresses.find((a) => a.isHome), [addresses])
 
-  // segments adjacents
   const segments = useMemo(() => {
     const out: Array<[Pick, Pick]> = []
     for (let i = 0; i < picks.length - 1; i++) out.push([picks[i], picks[i + 1]])
@@ -153,7 +149,6 @@ function Create({ addresses }: Props) {
   }
 
   function addPick(address: Address, insertIndex?: number) {
-    // anti doublon consécutif
     if (
       insertIndex === undefined &&
       picks.length > 0 &&
@@ -176,7 +171,6 @@ function Create({ addresses }: Props) {
     })
   }
 
-  // Metrics: LocalStorage -> backend
   async function resolveOne(startId: number, endId: number) {
     const k = segKey(startId, endId)
     if (metricsMap[k]) return
@@ -216,7 +210,6 @@ function Create({ addresses }: Props) {
     }
   }
 
-  // Résoudre *uniquement* les segments nouveaux/manquants
   function resolveMissingSegments() {
     for (let i = 0; i < picks.length - 1; i++) {
       const a = picks[i]
@@ -228,7 +221,6 @@ function Create({ addresses }: Props) {
     }
   }
 
-  // Recalculate affected pairs: (i-1,i) et (i,i+1) selon insertion/suppression
   function recalcAroundIndex(i: number) {
     const around = [i - 1, i].map(segKeyFromIndex).filter(Boolean) as string[]
     for (const k of around) {
@@ -239,13 +231,10 @@ function Create({ addresses }: Props) {
     }
   }
 
-  // click add => juste recalculer dernier segment
   useEffect(() => {
     if (picks.length >= 2) {
-      // on vérifie toutes les paires manquantes (utile après intercalation/reorder)
       resolveMissingSegments()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [picks])
 
   const totalDistance = useMemo(
@@ -261,7 +250,6 @@ function Create({ addresses }: Props) {
 
   async function save() {
     if (!date) return
-    // fabrique les legs depuis picks
     const legs = []
     for (let i = 0; i < picks.length - 1; i++) {
       const a = picks[i]
@@ -283,7 +271,6 @@ function Create({ addresses }: Props) {
     })
   }
 
-  // DnD handlers
   function onDragStart(e: DragStartEvent) {
     const { active } = e
     if (active.data?.current?.type) {
@@ -292,7 +279,6 @@ function Create({ addresses }: Props) {
   }
 
   function onDragOver(_e: DragOverEvent) {
-    // not needed for this scenario
   }
 
   function onDragEnd(e: DragEndEvent) {
@@ -303,9 +289,7 @@ function Create({ addresses }: Props) {
     const activeType = active.data?.current?.type as 'address' | 'pick' | undefined
     const overId = over.id
 
-    // Drag from address list INTO picks (intercalation)
     if (activeType === 'address' && overId === picksContainerId) {
-      // By default insert at end
       addPick(addresses.find((a) => a.id === (active.id as number))!)
       recalcAroundIndex(picks.length - 1)
       return
@@ -314,23 +298,20 @@ function Create({ addresses }: Props) {
     if (activeType === 'address' && typeof overId === 'string' && overId.startsWith('pick-')) {
       const overIndex = Number(overId.split('-')[1])
       const addr = addresses.find((a) => a.id === (active.id as number))!
-      addPick(addr, overIndex + 1) // insérer *après* le pick survolé (plus intuitif)
-      recalcAroundIndex(overIndex) // (overIndex, overIndex+1)
+      addPick(addr, overIndex + 1) 
+      recalcAroundIndex(overIndex)
       return
     }
 
-    // Reorder within picks
     if (activeType === 'pick' && typeof overId === 'string' && overId.startsWith('pick-')) {
       const oldIndex = picks.findIndex((p) => p.id === (active.id as number))
       const newIndex = Number(overId.split('-')[1])
       if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
       setPicks((prev) => arrayMove(prev, oldIndex, newIndex))
-      // après réorder, resolveMissingSegments via useEffect([picks]) fera le nécessaire
       return
     }
   }
 
-  // render helpers
   const renderPickRow = (p: Pick, idx: number) => (
     <Transition key={p.id} mounted transition="pop" duration={120} timingFunction="ease-out">
       {(styles) => (
@@ -356,7 +337,6 @@ function Create({ addresses }: Props) {
       <Head title="Créer un trajet" />
       <Container size="lg" py="lg">
         <Grid gutter="md">
-          {/* Carnet d'adresses (draggable sources + click) */}
           <Grid.Col span={{ base: 12, md: 4 }}>
             <Paper withBorder p="md" radius="lg" id={addressesContainerId}>
               <Group justify="space-between" mb="xs">
@@ -379,7 +359,6 @@ function Create({ addresses }: Props) {
                       {list.map((a) => (
                         <div
                           key={a.id}
-                          // Make it draggable via DnD kit by setting data
                           {...{
                             'data-dnd-kit': true,
                             draggable: true,
@@ -394,11 +373,9 @@ function Create({ addresses }: Props) {
                             onClick={() => addPick(a)}
                             leftSection={<TbPlus />}
                             fullWidth
-                            // DnD-kit: attach data via attributes
                             data-id={a.id}
                             data-type="address"
                             onMouseDown={(e) => {
-                              // tag dataset for dnd-kit
                               ;(e.currentTarget as any).dataset.dndKit = 'true'
                             }}
                           >
@@ -437,7 +414,6 @@ function Create({ addresses }: Props) {
                     )}
                   </Group>
 
-                  {/* Picks list droppable/sortable */}
                   <div id={picksContainerId}>
                     <SortableContext items={picks.map((p) => p.id)} strategy={verticalListSortingStrategy}>
                       <Stack gap="xs">
@@ -450,7 +426,6 @@ function Create({ addresses }: Props) {
                     </SortableContext>
                   </div>
 
-                  {/* Segments */}
                   <Stack mt="md" gap="xs">
                     {segments.map(([a, b], i) => {
                       const k = segKey(a.id, b.id)
@@ -508,7 +483,6 @@ function Create({ addresses }: Props) {
         </Grid>
       </Container>
 
-      {/* Modal suppression étape */}
       <ConfirmDeleteModal
         opened={deleteOpened}
         loading={deleteLoading}
