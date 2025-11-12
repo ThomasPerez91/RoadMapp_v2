@@ -33,7 +33,7 @@ import type { Address, PaginationMeta } from '~/types/app'
 import { useAppDrawer } from '~/components/drawer'
 import { AddressForm } from '~/components/addresses/address_form'
 import { FlashMessages } from '~/components/flash_messages'
-import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal' // 👈 NEW
+import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal'
 
 interface IndexProps {
   addresses: Address[]
@@ -70,7 +70,6 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
   const [results, setResults] = useState<Address[]>([])
   const [flash, setFlash] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
-  // 👇 NEW: modal state for deletion
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmLoading, setConfirmLoading] = useState(false)
@@ -181,14 +180,12 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
     }
   }
 
-  // 👇 NEW: ask via modal instead of window.confirm
   const askDelete = (id: number) => {
     setFlash(null)
     setDeleteId(id)
     setConfirmOpen(true)
   }
 
-  // 👇 NEW: confirm deletion (modal action)
   const confirmDelete = async () => {
     if (!deleteId) return
     setConfirmLoading(true)
@@ -427,7 +424,6 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
         )}
       </Container>
 
-      {/* 👇 NEW: ConfirmDeleteModal instance */}
       <ConfirmDeleteModal
         opened={confirmOpen}
         loading={confirmLoading}

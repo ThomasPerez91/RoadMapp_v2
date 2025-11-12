@@ -118,12 +118,10 @@ function Edit({ travel, legs: initialLegs, addresses }: Props) {
   }, [addresses])
   const homeAddress = useMemo(() => addresses.find((a) => a.isHome), [addresses])
 
-  // Hydrate picks from legs sequence
   useEffect(() => {
     if (!initialLegs.length) return
     const seq = [initialLegs[0].startId, ...initialLegs.map((l) => l.endId)]
     setPicks(seq.map((id) => ({ id, name: nameById.get(id) ?? `#${id}` })))
-    // preload metricsMap from legs
     const map: Record<string, Metrics> = {}
     for (const l of initialLegs) {
       map[segKey(l.startId, l.endId)] = {
@@ -179,7 +177,6 @@ function Edit({ travel, legs: initialLegs, addresses }: Props) {
     })
   }
 
-  // Metrics resolver (si l’utilisateur modifie la chaîne, on recalcule ce qui manque)
   async function resolveOne(startId: number, endId: number) {
     const k = segKey(startId, endId)
     if (metricsMap[k]) return
@@ -219,14 +216,12 @@ function Edit({ travel, legs: initialLegs, addresses }: Props) {
   }
 
   useEffect(() => {
-    // suite à n’importe quel changement de picks, résoudre ce qui manque
     for (let i = 0; i < picks.length - 1; i++) {
       const a = picks[i]
       const b = picks[i + 1]
       const k = segKey(a.id, b.id)
       if (!metricsMap[k] && a.id !== b.id) void resolveOne(a.id, b.id)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [picks])
 
   const totalDistance = useMemo(
@@ -301,7 +296,6 @@ function Edit({ travel, legs: initialLegs, addresses }: Props) {
         return
       }
 
-      // fallback: append
       setPicks((prev) => [...prev, { id: addr.id, name: addr.name }])
     }
   }
@@ -311,7 +305,6 @@ function Edit({ travel, legs: initialLegs, addresses }: Props) {
       <Head title={`Modifier trajet #${travel.id}`} />
       <Container size="lg" py="lg">
         <Grid gutter="md">
-          {/* Carnet d'adresses */}
           <Grid.Col span={{ base: 12, md: 4 }}>
             <Paper withBorder p="md" radius="lg">
               <Group justify="space-between" mb="xs">
@@ -352,7 +345,6 @@ function Edit({ travel, legs: initialLegs, addresses }: Props) {
             </Paper>
           </Grid.Col>
 
-          {/* Zone principale */}
           <Grid.Col span={{ base: 12, md: 8 }}>
             <Stack gap="md">
               <Paper withBorder p="md" radius="lg">
@@ -397,7 +389,6 @@ function Edit({ travel, legs: initialLegs, addresses }: Props) {
                     </Stack>
                   </SortableContext>
 
-                  {/* Segments */}
                   <Stack mt="md" gap="xs">
                     {segments.map(([a, b], i) => {
                       const k = segKey(a.id, b.id)
@@ -455,7 +446,6 @@ function Edit({ travel, legs: initialLegs, addresses }: Props) {
         </Grid>
       </Container>
 
-      {/* Modal suppression étape */}
       <ConfirmDeleteModal
         opened={deleteOpened}
         onCancel={() => setDeleteOpened(false)}
