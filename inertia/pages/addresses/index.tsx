@@ -88,9 +88,10 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
 
     searchAddresses(q, active)
       .then((list) => {
+        const safeList = Array.isArray(list) ? list : []
         const nq = normalize(q)
-        const starts = list.filter((a) => normalize(a.name).startsWith(nq))
-        const others = list.filter((a) => !normalize(a.name).startsWith(nq))
+        const starts = safeList.filter((a) => normalize(a.name).startsWith(nq))
+        const others = safeList.filter((a) => !normalize(a.name).startsWith(nq))
         setResults([...starts, ...others])
       })
       .catch(() => setResults([]))

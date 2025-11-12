@@ -1,7 +1,8 @@
 // inertia/pages/travels/index.tsx
 import { Head, router } from '@inertiajs/react'
-import { Container, Group, Pagination, Title } from '@mantine/core'
+import { Button, Container, Group, Pagination, Title } from '@mantine/core'
 import { useEffect, useState } from 'react'
+import { TbPlus } from 'react-icons/tb'
 import { DataTable } from '~/components/generics/data_table'
 import UserLayout from '~/layouts/user_layout'
 import type { PaginationMeta } from '~/types/app'
@@ -32,6 +33,10 @@ function Index({ travels, meta }: IndexProps) {
     router.get('/travels', { page: p }, { preserveState: true, preserveScroll: true })
   }
 
+  const goCreate = () => {
+    router.get('/travels/create')
+  }
+
   return (
     <>
       <Head title="Trajets" />
@@ -41,6 +46,17 @@ function Index({ travels, meta }: IndexProps) {
             <Title order={2}>Trajets</Title>
             <PageInfoButton page="travels" ariaLabel="Afficher l’aide sur les trajets" />
           </Group>
+
+          <Button
+            onClick={goCreate}
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: 'ocean', to: 'plum', deg: 60 }}
+            leftSection={<TbPlus size={16} />}
+            aria-label="Créer un trajet"
+          >
+            Créer un trajet
+          </Button>
         </Group>
 
         <DataTable
