@@ -26,6 +26,7 @@ import { AddressActionMenu } from '~/components/addresses/address_action_menu'
 import { FlashMessages } from '~/components/flash_messages'
 import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal'
 import { deleteAddress, searchAddresses, toggleAddressActive } from '~/services/addresses'
+import { PageInfoButton } from '~/components/page_info'
 
 interface IndexProps {
   addresses: Address[]
@@ -171,8 +172,11 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
       <Head title="Carnet d'adresses" />
       <FlashMessages flash={flash} />
       <Container size="lg">
-        <Group justify="space-between" mb="sm" wrap="wrap">
-          <Title order={3}>{title}</Title>
+        <Group justify="space-between" mb="sm" wrap="wrap" align="center">
+          <Group gap="xs" align="center">
+            <Title order={3}>{title}</Title>
+            <PageInfoButton page="addresses" ariaLabel="Afficher l’aide du carnet d’adresses" />
+          </Group>
           <Group gap="md">
             <Button
               variant="light"
