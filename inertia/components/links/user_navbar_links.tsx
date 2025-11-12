@@ -46,7 +46,7 @@ export const UserNavbarLinks = ({ isMobile }: UserNavbarLinksProps) => {
           />
 
           <InternalLink
-            route="/api/travels"
+            route="/travels"
             children={
               <Group gap="xs" align="center">
                 {travelIcon}
