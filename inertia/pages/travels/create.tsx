@@ -17,7 +17,7 @@ import {
 } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { notifications } from '@mantine/notifications'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { TbArrowRight, TbHome, TbPlus, TbTrash } from 'react-icons/tb'
 import UserLayout from '~/layouts/user_layout'
 import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal'
@@ -69,7 +69,11 @@ function SortablePick({
   id,
   label,
   onAskDelete,
-}: { id: number; label: string; onAskDelete: () => void }) {
+}: {
+  id: number
+  label: string
+  onAskDelete: () => void
+}) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -80,7 +84,12 @@ function SortablePick({
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
       <Group justify="space-between">
         <Text>{label}</Text>
-        <ActionIcon variant="subtle" color="red" onClick={onAskDelete} aria-label="Supprimer l’étape">
+        <ActionIcon
+          variant="subtle"
+          color="red"
+          onClick={onAskDelete}
+          aria-label="Supprimer l’étape"
+        >
           <TbTrash />
         </ActionIcon>
       </Group>
@@ -98,7 +107,9 @@ function Create({ addresses }: Props) {
   const [deleteLoading, setDeleteLoading] = useState(false)
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
-  const [activeDrag, setActiveDrag] = useState<{ type: 'address' | 'pick'; id: number } | null>(null)
+  const [activeDrag, setActiveDrag] = useState<{ type: 'address' | 'pick'; id: number } | null>(
+    null
+  )
   const picksContainerId = 'picks-container'
   const addressesContainerId = 'addresses-container'
 
@@ -111,7 +122,9 @@ function Create({ addresses }: Props) {
       if (!map.has(key)) map.set(key, [])
       map.get(key)!.push(a)
     }
-    return [...map.entries()].filter(([, list]) => list.length > 0).sort(([a], [b]) => a.localeCompare(b))
+    return [...map.entries()]
+      .filter(([, list]) => list.length > 0)
+      .sort(([a], [b]) => a.localeCompare(b))
   }, [addresses])
 
   const homeAddress = useMemo(() => addresses.find((a) => a.isHome), [addresses])
@@ -203,7 +216,7 @@ function Create({ addresses }: Props) {
       notifications.show({
         color: 'red',
         title: 'Erreur métriques',
-        message: "Impossible de récupérer la distance pour ce segment.",
+        message: 'Impossible de récupérer la distance pour ce segment.',
       })
     } finally {
       setResolving((r) => ({ ...r, [k]: false }))
@@ -238,15 +251,11 @@ function Create({ addresses }: Props) {
   }, [picks])
 
   const totalDistance = useMemo(
-    () =>
-      Array.from(segKeysSet).reduce((sum, k) => sum + (metricsMap[k]?.distance ?? 0), 0),
+    () => Array.from(segKeysSet).reduce((sum, k) => sum + (metricsMap[k]?.distance ?? 0), 0),
     [segKeysSet, metricsMap]
   )
 
-  const canSave =
-    date &&
-    picks.length >= 2 &&
-    Array.from(segKeysSet).every((k) => !!metricsMap[k])
+  const canSave = date && picks.length >= 2 && Array.from(segKeysSet).every((k) => !!metricsMap[k])
 
   async function save() {
     if (!date) return
@@ -278,8 +287,7 @@ function Create({ addresses }: Props) {
     }
   }
 
-  function onDragOver(_e: DragOverEvent) {
-  }
+  function onDragOver(_e: DragOverEvent) {}
 
   function onDragEnd(e: DragEndEvent) {
     const { active, over } = e
@@ -298,7 +306,7 @@ function Create({ addresses }: Props) {
     if (activeType === 'address' && typeof overId === 'string' && overId.startsWith('pick-')) {
       const overIndex = Number(overId.split('-')[1])
       const addr = addresses.find((a) => a.id === (active.id as number))!
-      addPick(addr, overIndex + 1) 
+      addPick(addr, overIndex + 1)
       recalcAroundIndex(overIndex)
       return
     }
@@ -319,7 +327,9 @@ function Create({ addresses }: Props) {
           <Paper p="xs" withBorder radius="md">
             <Group justify="space-between">
               <Group gap="xs">
-                <Badge variant={idx === 0 ? 'filled' : idx === picks.length - 1 ? 'light' : 'outline'}>
+                <Badge
+                  variant={idx === 0 ? 'filled' : idx === picks.length - 1 ? 'light' : 'outline'}
+                >
                   {idx === 0 ? 'Départ' : idx === picks.length - 1 ? 'Arrivée' : `Étape ${idx}`}
                 </Badge>
                 <Text>{p.name}</Text>
@@ -343,7 +353,11 @@ function Create({ addresses }: Props) {
                 <Group gap="xs">
                   <Title order={4}>Carnet d’adresses</Title>
                   {homeAddress && (
-                    <ActionIcon variant="light" onClick={() => addPick(homeAddress)} aria-label="Ajouter Maison">
+                    <ActionIcon
+                      variant="light"
+                      onClick={() => addPick(homeAddress)}
+                      aria-label="Ajouter Maison"
+                    >
                       <TbHome />
                     </ActionIcon>
                   )}
@@ -361,8 +375,8 @@ function Create({ addresses }: Props) {
                           key={a.id}
                           {...{
                             'data-dnd-kit': true,
-                            draggable: true,
-                            onDragStart: (ev: any) => {
+                            'draggable': true,
+                            'onDragStart': (ev: any) => {
                               ev.dataTransfer.setData('application/id', String(a.id))
                             },
                           }}
@@ -395,8 +409,14 @@ function Create({ addresses }: Props) {
             <Stack gap="md">
               <Paper withBorder p="md" radius="lg">
                 <Group>
-                  <Text fw={600} size="sm">Date</Text>
-                  <DateInput value={date} onChange={setDate} clearable={false} />
+                  <Text fw={600} size="sm">
+                    Date
+                  </Text>
+                  <DateInput
+                    value={date}
+                    onChange={(value) => setDate(value ? new Date(value) : null)}
+                    clearable={false}
+                  />
                 </Group>
               </Paper>
 
@@ -410,12 +430,17 @@ function Create({ addresses }: Props) {
                   <Group justify="space-between" mb="xs">
                     <Title order={4}>Étapes</Title>
                     {segments.length > 0 && (
-                      <Badge variant="dot">Total&nbsp;{totalDistance ? formatKm(totalDistance) : '–'}</Badge>
+                      <Badge variant="dot">
+                        Total&nbsp;{totalDistance ? formatKm(totalDistance) : '–'}
+                      </Badge>
                     )}
                   </Group>
 
                   <div id={picksContainerId}>
-                    <SortableContext items={picks.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                    <SortableContext
+                      items={picks.map((p) => p.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
                       <Stack gap="xs">
                         {picks.map((p, idx) => (
                           <div key={p.id} id={`pick-${idx}`} data-id={p.id} data-type="pick">
@@ -432,7 +457,13 @@ function Create({ addresses }: Props) {
                       const loading = resolving[k]
                       const m = metricsMap[k]
                       return (
-                        <Transition key={k} mounted transition="pop" duration={120} timingFunction="ease-out">
+                        <Transition
+                          key={k}
+                          mounted
+                          transition="pop"
+                          duration={120}
+                          timingFunction="ease-out"
+                        >
                           {(styles) => (
                             <div style={styles}>
                               <Paper p="sm" radius="md" withBorder>
@@ -465,8 +496,10 @@ function Create({ addresses }: Props) {
                     <Paper p="xs" radius="md" withBorder>
                       <Text size="sm">
                         {activeDrag.type === 'address'
-                          ? addresses.find((a) => a.id === activeDrag.id)?.name ?? `#${activeDrag.id}`
-                          : picks.find((p) => p.id === activeDrag.id)?.name ?? `#${activeDrag.id}`}
+                          ? (addresses.find((a) => a.id === activeDrag.id)?.name ??
+                            `#${activeDrag.id}`)
+                          : (picks.find((p) => p.id === activeDrag.id)?.name ??
+                            `#${activeDrag.id}`)}
                       </Text>
                     </Paper>
                   ) : null}
