@@ -378,6 +378,9 @@ function Edit({ travel, legs: initialLegs, addresses }: Props) {
                     value={date}
                     onChange={(value) => setDate(value ? new Date(value) : null)}
                     clearable={false}
+                    locale="fr"
+                    valueFormat="DD/MM/YYYY"
+                    popoverProps={{ withinPortal: true }}
                   />
                 </Group>
               </Paper>
