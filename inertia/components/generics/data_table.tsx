@@ -1,4 +1,4 @@
-// resources/js/components/generics/data_table.tsx
+// inertia/components/generics/data_table.tsx
 import { useState } from 'react'
 import { Table, UnstyledButton, Group, ScrollArea, Text, Box, useMantineTheme } from '@mantine/core'
 import { TbArrowUp, TbArrowDown } from 'react-icons/tb'
