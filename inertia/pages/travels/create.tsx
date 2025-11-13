@@ -1,3 +1,4 @@
+// inertia/pages/travels/create.tsx
 import { Head, router } from '@inertiajs/react'
 import {
   ActionIcon,
@@ -5,46 +6,28 @@ import {
   Box,
   Button,
   Container,
-  Divider,
   Grid,
   Group,
   Loader,
   Paper,
+  Select,
   Stack,
   Text,
   Title,
   Transition,
+  Tooltip,
 } from '@mantine/core'
 import { DateInput } from '@mantine/dates'
 import { notifications } from '@mantine/notifications'
+import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
-import { TbArrowRight, TbHome, TbPlus, TbTrash } from 'react-icons/tb'
+import { TbArrowDown, TbArrowUp, TbPlus, TbTrash } from 'react-icons/tb'
 import UserLayout from '~/layouts/user_layout'
 import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal'
-
 import {
-  DndContext,
-  DragOverlay,
-  useSensor,
-  useSensors,
-  PointerSensor,
-  DragStartEvent,
-  DragEndEvent,
-  DragOverEvent,
-} from '@dnd-kit/core'
-import {
-  arrayMove,
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-
-type Address = {
-  id: number
-  name: string
-  isHome?: boolean
-}
+  AddressBook,
+  type AddressBookAddress as Address,
+} from '~/components/addresses/address_book'
 
 type Metrics = {
   distance: number
@@ -52,9 +35,7 @@ type Metrics = {
   distanceToString: string
   durationToString: string
 }
-
 type Props = { addresses: Address[] }
-
 type Pick = { id: number; name: string }
 
 const lsKey = (a: number, b: number) => `metrics:${a}-${b}`
@@ -65,69 +46,23 @@ function formatKm(meters: number) {
   return km >= 1 ? `${km.toFixed(1)} km` : `${meters} m`
 }
 
-function SortablePick({
-  id,
-  label,
-  onAskDelete,
-}: {
-  id: number
-  label: string
-  onAskDelete: () => void
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }
-
-  return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <Group justify="space-between">
-        <Text>{label}</Text>
-        <ActionIcon
-          variant="subtle"
-          color="red"
-          onClick={onAskDelete}
-          aria-label="Supprimer l’étape"
-        >
-          <TbTrash />
-        </ActionIcon>
-      </Group>
-    </div>
-  )
-}
-
 function Create({ addresses }: Props) {
-  const [date, setDate] = useState<Date | null>(new Date())
+  const [date, setDate] = useState<Date | null>(dayjs().toDate())
   const [picks, setPicks] = useState<Pick[]>([])
   const [resolving, setResolving] = useState<Record<string, boolean>>({})
   const [metricsMap, setMetricsMap] = useState<Record<string, Metrics>>({})
   const [deleteIdx, setDeleteIdx] = useState<number | null>(null)
   const [deleteOpened, setDeleteOpened] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [insertForIndex, setInsertForIndex] = useState<number | null>(null)
+  const [insertValue, setInsertValue] = useState<string | null>(null)
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
-  const [activeDrag, setActiveDrag] = useState<{ type: 'address' | 'pick'; id: number } | null>(
-    null
-  )
-  const picksContainerId = 'picks-container'
-  const addressesContainerId = 'addresses-container'
-
-  const groups = useMemo(() => {
-    const map = new Map<string, Address[]>()
-    const sorted = [...addresses].sort((a, b) => a.name.localeCompare(b.name))
-    for (const a of sorted) {
-      const first = (a.name?.[0] || '#').toUpperCase()
-      const key = /[A-ZÀ-ÖØ-Ý]/.test(first) ? first : '#'
-      if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(a)
-    }
-    return [...map.entries()]
-      .filter(([, list]) => list.length > 0)
-      .sort(([a], [b]) => a.localeCompare(b))
+  // Adresses disponibles (y compris Maison)
+  const allAddressesById = useMemo(() => {
+    const m = new Map<number, Address>()
+    addresses.forEach((a) => m.set(a.id, a))
+    return m
   }, [addresses])
-
-  const homeAddress = useMemo(() => addresses.find((a) => a.isHome), [addresses])
 
   const segments = useMemo(() => {
     const out: Array<[Pick, Pick]> = []
@@ -140,10 +75,8 @@ function Create({ addresses }: Props) {
     [segments]
   )
 
-  const segKeyFromIndex = (idx: number) => {
-    if (idx < 0 || idx >= picks.length - 1) return null
-    return segKey(picks[idx].id, picks[idx + 1].id)
-  }
+  const segKeyFromIndex = (idx: number) =>
+    idx < 0 || idx >= picks.length - 1 ? null : segKey(picks[idx].id, picks[idx + 1].id)
 
   function askDelete(idx: number) {
     setDeleteIdx(idx)
@@ -174,12 +107,31 @@ function Create({ addresses }: Props) {
       })
       return
     }
-
     setPicks((prev) => {
       const next = [...prev]
       const item: Pick = { id: address.id, name: address.name }
-      if (insertIndex === undefined) next.push(item)
-      else next.splice(insertIndex, 0, item)
+      insertIndex === undefined ? next.push(item) : next.splice(insertIndex, 0, item)
+      return next
+    })
+  }
+
+  function movePickUp(idx: number) {
+    if (idx <= 0) return
+    setPicks((prev) => {
+      const next = [...prev]
+      const tmp = next[idx - 1]
+      next[idx - 1] = next[idx]
+      next[idx] = tmp
+      return next
+    })
+  }
+  function movePickDown(idx: number) {
+    if (idx >= picks.length - 1) return
+    setPicks((prev) => {
+      const next = [...prev]
+      const tmp = next[idx + 1]
+      next[idx + 1] = next[idx]
+      next[idx] = tmp
       return next
     })
   }
@@ -245,9 +197,8 @@ function Create({ addresses }: Props) {
   }
 
   useEffect(() => {
-    if (picks.length >= 2) {
-      resolveMissingSegments()
-    }
+    if (picks.length >= 2) resolveMissingSegments()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [picks])
 
   const totalDistance = useMemo(
@@ -275,133 +226,47 @@ function Create({ addresses }: Props) {
     }
 
     await router.post('/api/travels', {
-      date: date.toISOString().split('T')[0],
+      date: dayjs(date).format('YYYY-MM-DD'),
       legs,
     })
   }
 
-  function onDragStart(e: DragStartEvent) {
-    const { active } = e
-    if (active.data?.current?.type) {
-      setActiveDrag({ type: active.data.current.type, id: active.id as number })
-    }
-  }
-
-  function onDragOver(_e: DragOverEvent) {}
-
-  function onDragEnd(e: DragEndEvent) {
-    const { active, over } = e
-    setActiveDrag(null)
-    if (!over) return
-
-    const activeType = active.data?.current?.type as 'address' | 'pick' | undefined
-    const overId = over.id
-
-    if (activeType === 'address' && overId === picksContainerId) {
-      addPick(addresses.find((a) => a.id === (active.id as number))!)
-      recalcAroundIndex(picks.length - 1)
-      return
-    }
-
-    if (activeType === 'address' && typeof overId === 'string' && overId.startsWith('pick-')) {
-      const overIndex = Number(overId.split('-')[1])
-      const addr = addresses.find((a) => a.id === (active.id as number))!
-      addPick(addr, overIndex + 1)
-      recalcAroundIndex(overIndex)
-      return
-    }
-
-    if (activeType === 'pick' && typeof overId === 'string' && overId.startsWith('pick-')) {
-      const oldIndex = picks.findIndex((p) => p.id === (active.id as number))
-      const newIndex = Number(overId.split('-')[1])
-      if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
-      setPicks((prev) => arrayMove(prev, oldIndex, newIndex))
-      return
-    }
-  }
-
-  const renderPickRow = (p: Pick, idx: number) => (
-    <Transition key={p.id} mounted transition="pop" duration={120} timingFunction="ease-out">
-      {(styles) => (
-        <div style={styles} id={`pick-${idx}`}>
-          <Paper p="xs" withBorder radius="md">
-            <Group justify="space-between">
-              <Group gap="xs">
-                <Badge
-                  variant={idx === 0 ? 'filled' : idx === picks.length - 1 ? 'light' : 'outline'}
-                >
-                  {idx === 0 ? 'Départ' : idx === picks.length - 1 ? 'Arrivée' : `Étape ${idx}`}
-                </Badge>
-                <Text>{p.name}</Text>
-              </Group>
-              <SortablePick id={p.id} label={p.name} onAskDelete={() => askDelete(idx)} />
-            </Group>
-          </Paper>
-        </div>
-      )}
-    </Transition>
+  // --- Insertion via Select ---
+  const selectData = useMemo(
+    () =>
+      addresses.map((a) => ({
+        value: String(a.id),
+        label: a.name,
+      })),
+    [addresses]
   )
+
+  function openInsertAfter(idx: number) {
+    setInsertForIndex(idx)
+    setInsertValue(null)
+  }
+  function confirmInsertAfter() {
+    if (insertForIndex === null || !insertValue) return
+    const addr = allAddressesById.get(Number(insertValue))
+    if (!addr) return
+    addPick(addr, insertForIndex + 1)
+    recalcAroundIndex(insertForIndex)
+    setInsertForIndex(null)
+    setInsertValue(null)
+  }
 
   return (
     <>
       <Head title="Créer un trajet" />
       <Container size="lg" py="lg">
         <Grid gutter="md">
+          {/* Carnet d’adresses (nom + tooltip) */}
           <Grid.Col span={{ base: 12, md: 4 }}>
-            <Paper withBorder p="md" radius="lg" id={addressesContainerId}>
-              <Group justify="space-between" mb="xs">
-                <Group gap="xs">
-                  <Title order={4}>Carnet d’adresses</Title>
-                  {homeAddress && (
-                    <ActionIcon
-                      variant="light"
-                      onClick={() => addPick(homeAddress)}
-                      aria-label="Ajouter Maison"
-                    >
-                      <TbHome />
-                    </ActionIcon>
-                  )}
-                </Group>
-                <Badge variant="light">{addresses.length}</Badge>
-              </Group>
-
-              <Stack gap="xs" style={{ maxHeight: 460, overflowY: 'auto' }}>
-                {groups.map(([letter, list]) => (
-                  <Box key={letter}>
-                    <Divider my="xs" label={<Text fw={700}>{letter}</Text>} labelPosition="left" />
-                    <Stack gap={4}>
-                      {list.map((a) => (
-                        <div
-                          key={a.id}
-                          {...{
-                            'data-dnd-kit': true,
-                            'draggable': true,
-                            'onDragStart': (ev: any) => {
-                              ev.dataTransfer.setData('application/id', String(a.id))
-                            },
-                          }}
-                        >
-                          <Button
-                            variant="subtle"
-                            size="compact-md"
-                            onClick={() => addPick(a)}
-                            leftSection={<TbPlus />}
-                            fullWidth
-                            data-id={a.id}
-                            data-type="address"
-                            onMouseDown={(e) => {
-                              ;(e.currentTarget as any).dataset.dndKit = 'true'
-                            }}
-                          >
-                            {a.name}
-                          </Button>
-                        </div>
-                      ))}
-                    </Stack>
-                  </Box>
-                ))}
-              </Stack>
-            </Paper>
+            <AddressBook
+              addresses={addresses}
+              homeAddress={addresses.find((a) => a.isHome) ?? undefined}
+              onAdd={(addr) => addPick(addr)}
+            />
           </Grid.Col>
 
           {/* Zone principale */}
@@ -414,7 +279,7 @@ function Create({ addresses }: Props) {
                   </Text>
                   <DateInput
                     value={date}
-                    onChange={(value) => setDate(value ? new Date(value) : null)}
+                    onChange={(value: string | null) => setDate(value ? new Date(value) : null)}
                     clearable={false}
                     locale="fr"
                     valueFormat="DD/MM/YYYY"
@@ -423,91 +288,142 @@ function Create({ addresses }: Props) {
                 </Group>
               </Paper>
 
-              <DndContext
-                sensors={sensors}
-                onDragStart={onDragStart}
-                onDragOver={onDragOver}
-                onDragEnd={onDragEnd}
-              >
-                <Paper withBorder p="md" radius="lg">
-                  <Group justify="space-between" mb="xs">
-                    <Title order={4}>Étapes</Title>
-                    {segments.length > 0 && (
-                      <Badge variant="dot">
-                        Total&nbsp;{totalDistance ? formatKm(totalDistance) : '–'}
-                      </Badge>
-                    )}
-                  </Group>
+              <Paper withBorder p="md" radius="lg">
+                <Group justify="space-between" mb="xs">
+                  <Title order={4}>Étapes</Title>
+                  {segments.length > 0 && (
+                    <Badge variant="dot">
+                      Total&nbsp;{totalDistance ? formatKm(totalDistance) : '–'}
+                    </Badge>
+                  )}
+                </Group>
 
-                  <div id={picksContainerId}>
-                    <SortableContext
-                      items={picks.map((p) => p.id)}
-                      strategy={verticalListSortingStrategy}
+                <Stack gap="xs">
+                  {picks.map((p, idx) => (
+                    <Transition
+                      key={`${p.id}-${idx}`}
+                      mounted
+                      transition="pop"
+                      duration={120}
+                      timingFunction="ease-out"
                     >
-                      <Stack gap="xs">
-                        {picks.map((p, idx) => (
-                          <div key={p.id} id={`pick-${idx}`} data-id={p.id} data-type="pick">
-                            {renderPickRow(p, idx)}
+                      {(styles) => (
+                        <div style={styles}>
+                          <Paper p="xs" withBorder radius="md">
+                            <Group justify="space-between" align="center">
+                              <Group gap="xs">
+                                <Badge
+                                  variant={
+                                    idx === 0
+                                      ? 'filled'
+                                      : idx === picks.length - 1
+                                        ? 'light'
+                                        : 'outline'
+                                  }
+                                >
+                                  {idx === 0
+                                    ? 'Départ'
+                                    : idx === picks.length - 1
+                                      ? 'Arrivée'
+                                      : `Étape ${idx}`}
+                                </Badge>
+                                <Text>{p.name}</Text>
+                              </Group>
+
+                              <Group gap="xs">
+                                <Tooltip label="Monter">
+                                  <ActionIcon
+                                    variant="subtle"
+                                    onClick={() => {
+                                      movePickUp(idx)
+                                      recalcAroundIndex(idx - 1)
+                                    }}
+                                    disabled={idx === 0}
+                                    aria-label="Monter"
+                                  >
+                                    <TbArrowUp />
+                                  </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label="Descendre">
+                                  <ActionIcon
+                                    variant="subtle"
+                                    onClick={() => {
+                                      movePickDown(idx)
+                                      recalcAroundIndex(idx)
+                                    }}
+                                    disabled={idx === picks.length - 1}
+                                    aria-label="Descendre"
+                                  >
+                                    <TbArrowDown />
+                                  </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label="Insérer une adresse après">
+                                  <ActionIcon
+                                    variant="light"
+                                    onClick={() => openInsertAfter(idx)}
+                                    aria-label="Insérer après"
+                                  >
+                                    <TbPlus />
+                                  </ActionIcon>
+                                </Tooltip>
+                                <Tooltip label="Supprimer l’étape">
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color="red"
+                                    onClick={() => askDelete(idx)}
+                                    aria-label="Supprimer"
+                                  >
+                                    <TbTrash />
+                                  </ActionIcon>
+                                </Tooltip>
+                              </Group>
+                            </Group>
+                          </Paper>
+                        </div>
+                      )}
+                    </Transition>
+                  ))}
+                </Stack>
+
+                {/* Segments */}
+                <Stack mt="md" gap="xs">
+                  {segments.map(([a, b], i) => {
+                    const k = segKey(a.id, b.id)
+                    const loading = resolving[k]
+                    const m = metricsMap[k]
+                    return (
+                      <Transition
+                        key={k}
+                        mounted
+                        transition="pop"
+                        duration={120}
+                        timingFunction="ease-out"
+                      >
+                        {(styles) => (
+                          <div style={styles}>
+                            <Paper p="sm" radius="md" withBorder>
+                              <Group gap="xs" wrap="nowrap">
+                                <Text fw={600}>Segment {i + 1}</Text>
+                                <Text>{a.name}</Text>
+                                <Text c="dimmed">→</Text>
+                                <Text>{b.name}</Text>
+                                <Box ml="auto" />
+                                {loading && <Loader size="xs" />}
+                                {!loading && m && (
+                                  <Group gap="xs">
+                                    <Badge variant="light">{m.distanceToString}</Badge>
+                                    <Badge variant="outline">{m.durationToString}</Badge>
+                                  </Group>
+                                )}
+                              </Group>
+                            </Paper>
                           </div>
-                        ))}
-                      </Stack>
-                    </SortableContext>
-                  </div>
-
-                  <Stack mt="md" gap="xs">
-                    {segments.map(([a, b], i) => {
-                      const k = segKey(a.id, b.id)
-                      const loading = resolving[k]
-                      const m = metricsMap[k]
-                      return (
-                        <Transition
-                          key={k}
-                          mounted
-                          transition="pop"
-                          duration={120}
-                          timingFunction="ease-out"
-                        >
-                          {(styles) => (
-                            <div style={styles}>
-                              <Paper p="sm" radius="md" withBorder>
-                                <Group gap="xs" wrap="nowrap">
-                                  <Text fw={600}>Segment {i + 1}</Text>
-                                  <TbArrowRight />
-                                  <Text>{a.name}</Text>
-                                  <Text c="dimmed">→</Text>
-                                  <Text>{b.name}</Text>
-                                  <Box ml="auto" />
-                                  {loading && <Loader size="xs" />}
-                                  {!loading && m && (
-                                    <Group gap="xs">
-                                      <Badge variant="light">{m.distanceToString}</Badge>
-                                      <Badge variant="outline">{m.durationToString}</Badge>
-                                    </Group>
-                                  )}
-                                </Group>
-                              </Paper>
-                            </div>
-                          )}
-                        </Transition>
-                      )
-                    })}
-                  </Stack>
-                </Paper>
-
-                <DragOverlay>
-                  {activeDrag ? (
-                    <Paper p="xs" radius="md" withBorder>
-                      <Text size="sm">
-                        {activeDrag.type === 'address'
-                          ? (addresses.find((a) => a.id === activeDrag.id)?.name ??
-                            `#${activeDrag.id}`)
-                          : (picks.find((p) => p.id === activeDrag.id)?.name ??
-                            `#${activeDrag.id}`)}
-                      </Text>
-                    </Paper>
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
+                        )}
+                      </Transition>
+                    )
+                  })}
+                </Stack>
+              </Paper>
 
               <Group justify="end">
                 <Button disabled={!canSave} onClick={save}>
@@ -519,6 +435,52 @@ function Create({ addresses }: Props) {
         </Grid>
       </Container>
 
+      {/* Insertion après — Select compact */}
+      {insertForIndex !== null && (
+        <Paper
+          withBorder
+          radius="lg"
+          p="md"
+          style={{
+            position: 'fixed',
+            left: '50%',
+            top: '20%',
+            transform: 'translateX(-50%)',
+            zIndex: 999,
+            width: 420,
+            maxWidth: 'calc(100% - 2rem)',
+            background: 'var(--mantine-color-body)',
+          }}
+        >
+          <Stack>
+            <Title order={5}>Insérer une adresse après cette étape</Title>
+            <Select
+              data={selectData}
+              searchable
+              nothingFoundMessage="Aucune adresse"
+              value={insertValue}
+              onChange={setInsertValue}
+              placeholder="Rechercher…"
+            />
+            <Group justify="end">
+              <Button
+                variant="default"
+                onClick={() => {
+                  setInsertForIndex(null)
+                  setInsertValue(null)
+                }}
+              >
+                Annuler
+              </Button>
+              <Button leftSection={<TbPlus />} onClick={confirmInsertAfter} disabled={!insertValue}>
+                Insérer
+              </Button>
+            </Group>
+          </Stack>
+        </Paper>
+      )}
+
+      {/* Modal suppression étape */}
       <ConfirmDeleteModal
         opened={deleteOpened}
         loading={deleteLoading}
