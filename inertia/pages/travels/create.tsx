@@ -2,7 +2,6 @@
 import { Head, router } from '@inertiajs/react'
 import {
   ActionIcon,
-  Badge,
   Box,
   Button,
   Container,
@@ -22,8 +21,8 @@ import { notifications } from '@mantine/notifications'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 import { TbArrowDown, TbArrowUp, TbPlus, TbTrash } from 'react-icons/tb'
+import { LuMapPinHouse, LuMapPin, LuMapPinCheck } from 'react-icons/lu'
 import UserLayout from '~/layouts/user_layout'
-import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal'
 import {
   AddressBook,
   type AddressBookAddress as Address,
@@ -51,9 +50,6 @@ function Create({ addresses }: Props) {
   const [picks, setPicks] = useState<Pick[]>([])
   const [resolving, setResolving] = useState<Record<string, boolean>>({})
   const [metricsMap, setMetricsMap] = useState<Record<string, Metrics>>({})
-  const [deleteIdx, setDeleteIdx] = useState<number | null>(null)
-  const [deleteOpened, setDeleteOpened] = useState(false)
-  const [deleteLoading, setDeleteLoading] = useState(false)
   const [insertForIndex, setInsertForIndex] = useState<number | null>(null)
   const [insertValue, setInsertValue] = useState<string | null>(null)
 
@@ -63,6 +59,11 @@ function Create({ addresses }: Props) {
     addresses.forEach((a) => m.set(a.id, a))
     return m
   }, [addresses])
+
+  const homeAddress = useMemo(
+    () => addresses.find((a) => a.isHome) ?? null,
+    [addresses]
+  )
 
   const segments = useMemo(() => {
     const out: Array<[Pick, Pick]> = []
@@ -78,22 +79,6 @@ function Create({ addresses }: Props) {
   const segKeyFromIndex = (idx: number) =>
     idx < 0 || idx >= picks.length - 1 ? null : segKey(picks[idx].id, picks[idx + 1].id)
 
-  function askDelete(idx: number) {
-    setDeleteIdx(idx)
-    setDeleteOpened(true)
-  }
-  function confirmDelete() {
-    if (deleteIdx === null) return
-    setDeleteLoading(true)
-    try {
-      setPicks((prev) => prev.filter((_, i) => i !== deleteIdx))
-    } finally {
-      setDeleteLoading(false)
-      setDeleteOpened(false)
-      setDeleteIdx(null)
-    }
-  }
-
   function addPick(address: Address, insertIndex?: number) {
     if (
       insertIndex === undefined &&
@@ -108,105 +93,120 @@ function Create({ addresses }: Props) {
       return
     }
     setPicks((prev) => {
+      if (insertIndex === undefined) {
+        return [...prev, { id: address.id, name: address.name }]
+      }
       const next = [...prev]
-      const item: Pick = { id: address.id, name: address.name }
-      insertIndex === undefined ? next.push(item) : next.splice(insertIndex, 0, item)
+      next.splice(insertIndex, 0, { id: address.id, name: address.name })
       return next
     })
+  }
+
+  function removePick(idx: number) {
+    setPicks((prev) => prev.filter((_, i) => i !== idx))
   }
 
   function movePickUp(idx: number) {
     if (idx <= 0) return
     setPicks((prev) => {
       const next = [...prev]
-      const tmp = next[idx - 1]
-      next[idx - 1] = next[idx]
-      next[idx] = tmp
+      ;[next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]
       return next
     })
   }
+
   function movePickDown(idx: number) {
     if (idx >= picks.length - 1) return
     setPicks((prev) => {
       const next = [...prev]
-      const tmp = next[idx + 1]
-      next[idx + 1] = next[idx]
-      next[idx] = tmp
+      ;[next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]
       return next
     })
   }
 
-  async function resolveOne(startId: number, endId: number) {
-    const k = segKey(startId, endId)
-    if (metricsMap[k]) return
-
-    const now = Date.now()
-    const cached = localStorage.getItem(lsKey(startId, endId))
-    if (cached) {
-      try {
-        const { ttl, data } = JSON.parse(cached) as { ttl: number; data: Metrics }
-        if (ttl > now) {
-          setMetricsMap((m) => ({ ...m, [k]: data }))
-          return
+  // Chargement des métriques depuis localStorage
+  useEffect(() => {
+    const map: Record<string, Metrics> = {}
+    for (const [a, b] of segments) {
+      const key = segKey(a.id, b.id)
+      const lsK = lsKey(a.id, b.id)
+      const cached = window.localStorage.getItem(lsK)
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached) as Metrics
+          map[key] = parsed
+        } catch {
+          // ignore
         }
-        localStorage.removeItem(lsKey(startId, endId))
-      } catch {}
-    }
-
-    setResolving((r) => ({ ...r, [k]: true }))
-    try {
-      const url = new URL('/api/metrics', window.location.origin)
-      url.searchParams.set('startId', String(startId))
-      url.searchParams.set('endId', String(endId))
-      const res = await fetch(url.toString())
-      if (!res.ok) throw new Error('metrics failed')
-      const data = (await res.json()) as Metrics
-      setMetricsMap((m) => ({ ...m, [k]: data }))
-      const ttl = now + 7 * 24 * 60 * 60 * 1000
-      localStorage.setItem(lsKey(startId, endId), JSON.stringify({ ttl, data }))
-    } catch {
-      notifications.show({
-        color: 'red',
-        title: 'Erreur métriques',
-        message: 'Impossible de récupérer la distance pour ce segment.',
-      })
-    } finally {
-      setResolving((r) => ({ ...r, [k]: false }))
-    }
-  }
-
-  function resolveMissingSegments() {
-    for (let i = 0; i < picks.length - 1; i++) {
-      const a = picks[i]
-      const b = picks[i + 1]
-      const k = segKey(a.id, b.id)
-      if (!metricsMap[k] && a.id !== b.id) {
-        void resolveOne(a.id, b.id)
       }
     }
+    setMetricsMap(map)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [segments.length])
+
+  async function fetchMetricsForSegment(a: Pick, b: Pick) {
+    const key = segKey(a.id, b.id)
+    if (metricsMap[key] || resolving[key]) return
+
+    setResolving((prev) => ({ ...prev, [key]: true }))
+    try {
+      const response = await fetch(`/api/metrics?start_id=${a.id}&end_id=${b.id}`)
+      if (!response.ok) throw new Error('Erreur lors du calcul de la distance')
+      const data = (await response.json()) as Metrics
+
+      setMetricsMap((prev) => {
+        const next = { ...prev, [key]: data }
+        window.localStorage.setItem(lsKey(a.id, b.id), JSON.stringify(data))
+        return next
+      })
+    } catch (error: any) {
+      notifications.show({
+        color: 'red',
+        title: 'Erreur de calcul',
+        message: error.message ?? 'Impossible de calculer la distance pour ce segment.',
+      })
+    } finally {
+      setResolving((prev) => {
+        const next = { ...prev }
+        delete next[key]
+        return next
+      })
+    }
   }
 
-  function recalcAroundIndex(i: number) {
-    const around = [i - 1, i].map(segKeyFromIndex).filter(Boolean) as string[]
-    for (const k of around) {
-      const [aStr, bStr] = k.split('-')
-      const a = Number(aStr)
-      const b = Number(bStr)
-      if (a !== b) void resolveOne(a, b)
+  // Recalcul des métriques lorsque des étapes changent autour d’un index
+  function recalcAroundIndex(idx: number) {
+    const prevKey = segKeyFromIndex(idx - 1)
+    const nextKey = segKeyFromIndex(idx)
+
+    if (prevKey) {
+      const [aId, bId] = prevKey.split('-').map(Number)
+      const a = { id: aId, name: allAddressesById.get(aId)?.name ?? '' }
+      const b = { id: bId, name: allAddressesById.get(bId)?.name ?? '' }
+      fetchMetricsForSegment(a, b)
+    }
+    if (nextKey) {
+      const [aId, bId] = nextKey.split('-').map(Number)
+      const a = { id: aId, name: allAddressesById.get(aId)?.name ?? '' }
+      const b = { id: bId, name: allAddressesById.get(bId)?.name ?? '' }
+      fetchMetricsForSegment(a, b)
     }
   }
 
   useEffect(() => {
-    if (picks.length >= 2) resolveMissingSegments()
+    segments.forEach(([a, b]) => {
+      fetchMetricsForSegment(a, b)
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [picks])
+  }, [segments.length])
 
   const totalDistance = useMemo(
     () => Array.from(segKeysSet).reduce((sum, k) => sum + (metricsMap[k]?.distance ?? 0), 0),
     [segKeysSet, metricsMap]
   )
 
-  const canSave = date && picks.length >= 2 && Array.from(segKeysSet).every((k) => !!metricsMap[k])
+  const canSave =
+    date && picks.length >= 2 && Array.from(segKeysSet).every((k) => !!metricsMap[k])
 
   async function save() {
     if (!date) return
@@ -214,7 +214,9 @@ function Create({ addresses }: Props) {
     for (let i = 0; i < picks.length - 1; i++) {
       const a = picks[i]
       const b = picks[i + 1]
-      const m = metricsMap[segKey(a.id, b.id)]!
+      const key = segKey(a.id, b.id)
+      const m = metricsMap[key]
+      if (!m) continue
       legs.push({
         startId: a.id,
         endId: b.id,
@@ -241,16 +243,18 @@ function Create({ addresses }: Props) {
     [addresses]
   )
 
-  function openInsertAfter(idx: number) {
+  const openInsertAfter = (idx: number) => {
     setInsertForIndex(idx)
     setInsertValue(null)
   }
-  function confirmInsertAfter() {
+
+  const confirmInsertAfter = () => {
     if (insertForIndex === null || !insertValue) return
-    const addr = allAddressesById.get(Number(insertValue))
-    if (!addr) return
-    addPick(addr, insertForIndex + 1)
-    recalcAroundIndex(insertForIndex)
+    const id = Number.parseInt(insertValue, 10)
+    const address = addresses.find((a) => a.id === id)
+    if (!address) return
+
+    addPick(address, insertForIndex + 1)
     setInsertForIndex(null)
     setInsertValue(null)
   }
@@ -258,172 +262,256 @@ function Create({ addresses }: Props) {
   return (
     <>
       <Head title="Créer un trajet" />
-      <Container size="lg" py="lg">
-        <Grid gutter="md">
-          {/* Carnet d’adresses (nom + tooltip) */}
+      <Container py="lg">
+        <Grid gutter="lg">
+          {/* Colonne gauche : carnet d’adresses */}
           <Grid.Col span={{ base: 12, md: 4 }}>
-            <AddressBook
-              addresses={addresses}
-              homeAddress={addresses.find((a) => a.isHome) ?? undefined}
-              onAdd={(addr) => addPick(addr)}
-            />
-          </Grid.Col>
-
-          {/* Zone principale */}
-          <Grid.Col span={{ base: 12, md: 8 }}>
             <Stack gap="md">
               <Paper withBorder p="md" radius="lg">
-                <Group>
-                  <Text fw={600} size="sm">
-                    Date
+                <Stack gap="xs">
+                  <Text size="sm" c="dimmed">
+                    Date du trajet
                   </Text>
                   <DateInput
                     value={date}
-                    onChange={(value: string | null) => setDate(value ? new Date(value) : null)}
-                    clearable={false}
-                    locale="fr"
+                    onChange={setDate}
                     valueFormat="DD/MM/YYYY"
-                    popoverProps={{ withinPortal: true }}
+                    aria-label="Date du trajet"
                   />
-                </Group>
+                </Stack>
               </Paper>
 
-              <Paper withBorder p="md" radius="lg">
-                <Group justify="space-between" mb="xs">
-                  <Title order={4}>Étapes</Title>
-                  {segments.length > 0 && (
-                    <Badge variant="dot">
-                      Total&nbsp;{totalDistance ? formatKm(totalDistance) : '–'}
-                    </Badge>
+              <AddressBook
+                addresses={addresses}
+                homeAddress={homeAddress ?? undefined}
+                onAdd={(addr) => addPick(addr)}
+              />
+            </Stack>
+          </Grid.Col>
+
+          {/* Colonne droite : étapes & aperçu */}
+          <Grid.Col span={{ base: 12, md: 8 }}>
+            <Stack gap="md">
+              <Group justify="space-between" align="flex-start">
+                <div>
+                  <Title order={3}>Étapes du trajet</Title>
+                  <Text size="sm" c="dimmed">
+                    Ajoutez au moins un point de départ et une arrivée pour construire votre trajet.
+                  </Text>
+                </div>
+
+                <Box ta="right">
+                  <Text size="xs" c="dimmed">
+                    Distance totale estimée
+                  </Text>
+                  <Text fw={600}>
+                    {totalDistance > 0 ? formatKm(totalDistance) : 'En attente des étapes'}
+                  </Text>
+                </Box>
+              </Group>
+
+              <Paper withBorder radius="lg" p="md">
+                <Stack gap="sm">
+                  {picks.length === 0 && (
+                    <Text size="sm" c="dimmed">
+                      Aucune étape pour le moment. Sélectionnez des adresses à gauche pour
+                      commencer.
+                    </Text>
                   )}
-                </Group>
 
-                <Stack gap="xs">
-                  {picks.map((p, idx) => (
-                    <Transition
-                      key={`${p.id}-${idx}`}
-                      mounted
-                      transition="pop"
-                      duration={120}
-                      timingFunction="ease-out"
-                    >
-                      {(styles) => (
-                        <div style={styles}>
-                          <Paper p="xs" withBorder radius="md">
-                            <Group justify="space-between" align="center">
-                              <Group gap="xs">
-                                <Badge
-                                  variant={
-                                    idx === 0
-                                      ? 'filled'
-                                      : idx === picks.length - 1
-                                        ? 'light'
-                                        : 'outline'
-                                  }
-                                >
-                                  {idx === 0
-                                    ? 'Départ'
-                                    : idx === picks.length - 1
-                                      ? 'Arrivée'
-                                      : `Étape ${idx}`}
-                                </Badge>
-                                <Text>{p.name}</Text>
-                              </Group>
+                  {picks.map((p, idx) => {
+                    const isFirst = idx === 0
+                    const isLast = idx === picks.length - 1
+                    const icon = isFirst ? (
+                      <LuMapPinHouse size={20} />
+                    ) : isLast ? (
+                      <LuMapPinCheck size={20} />
+                    ) : (
+                      <LuMapPin size={18} />
+                    )
 
-                              <Group gap="xs">
-                                <Tooltip label="Monter">
-                                  <ActionIcon
-                                    variant="subtle"
-                                    onClick={() => {
-                                      movePickUp(idx)
-                                      recalcAroundIndex(idx - 1)
-                                    }}
-                                    disabled={idx === 0}
-                                    aria-label="Monter"
-                                  >
-                                    <TbArrowUp />
-                                  </ActionIcon>
-                                </Tooltip>
-                                <Tooltip label="Descendre">
-                                  <ActionIcon
-                                    variant="subtle"
-                                    onClick={() => {
-                                      movePickDown(idx)
-                                      recalcAroundIndex(idx)
-                                    }}
-                                    disabled={idx === picks.length - 1}
-                                    aria-label="Descendre"
-                                  >
-                                    <TbArrowDown />
-                                  </ActionIcon>
-                                </Tooltip>
-                                <Tooltip label="Insérer une adresse après">
-                                  <ActionIcon
-                                    variant="light"
-                                    onClick={() => openInsertAfter(idx)}
-                                    aria-label="Insérer après"
-                                  >
-                                    <TbPlus />
-                                  </ActionIcon>
-                                </Tooltip>
-                                <Tooltip label="Supprimer l’étape">
-                                  <ActionIcon
-                                    variant="subtle"
-                                    color="red"
-                                    onClick={() => askDelete(idx)}
-                                    aria-label="Supprimer"
-                                  >
-                                    <TbTrash />
-                                  </ActionIcon>
-                                </Tooltip>
-                              </Group>
-                            </Group>
-                          </Paper>
-                        </div>
-                      )}
-                    </Transition>
-                  ))}
-                </Stack>
+                    const address = allAddressesById.get(p.id)
 
-                {/* Segments */}
-                <Stack mt="md" gap="xs">
-                  {segments.map(([a, b], i) => {
-                    const k = segKey(a.id, b.id)
-                    const loading = resolving[k]
-                    const m = metricsMap[k]
+                    // Infos sur le segment vers l’étape suivante (si elle existe)
+                    const hasNext = !isLast && picks[idx + 1]
+                    const nextPick = hasNext ? picks[idx + 1] : null
+                    const segmentKey =
+                      hasNext && nextPick ? segKey(p.id, nextPick.id) : null
+                    const metrics = segmentKey ? metricsMap[segmentKey] : undefined
+                    const isLoading =
+                      segmentKey ? resolving[segmentKey] && !metrics : false
+
                     return (
-                      <Transition
-                        key={k}
-                        mounted
-                        transition="pop"
-                        duration={120}
-                        timingFunction="ease-out"
-                      >
-                        {(styles) => (
-                          <div style={styles}>
-                            <Paper p="sm" radius="md" withBorder>
-                              <Group gap="xs" wrap="nowrap">
-                                <Text fw={600}>Segment {i + 1}</Text>
-                                <Text>{a.name}</Text>
-                                <Text c="dimmed">→</Text>
-                                <Text>{b.name}</Text>
-                                <Box ml="auto" />
-                                {loading && <Loader size="xs" />}
-                                {!loading && m && (
+                      <Stack key={`${p.id}-${idx}`} gap={4}>
+                        <Transition
+                          mounted
+                          transition="pop"
+                          duration={120}
+                          timingFunction="ease-out"
+                        >
+                          {(styles) => (
+                            <div style={styles}>
+                              <Paper
+                                withBorder
+                                radius="md"
+                                p="xs"
+                                style={{
+                                  background: 'rgba(15,23,42,.9)',
+                                  borderColor: 'rgba(148,163,184,.4)',
+                                }}
+                              >
+                                <Group
+                                  justify="space-between"
+                                  align="center"
+                                  gap="md"
+                                  wrap="nowrap"
+                                >
+                                  {/* Col 1 : icône */}
+                                  <Box
+                                    style={{
+                                      width: 32,
+                                      height: 32,
+                                      borderRadius: 999,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      background:
+                                        isFirst || isLast
+                                          ? 'linear-gradient(135deg, rgba(56,189,248,.28), rgba(129,140,248,.32))'
+                                          : 'rgba(15,23,42,1)',
+                                      border:
+                                        isFirst || isLast
+                                          ? '1px solid rgba(129,140,248,.8)'
+                                          : '1px solid rgba(51,65,85,.9)',
+                                    }}
+                                  >
+                                    {icon}
+                                  </Box>
+
+                                  {/* Col 2 : nom + adresse */}
+                                  <Box style={{ flex: 1, minWidth: 0 }}>
+                                    <Text
+                                      fw={600}
+                                      size="sm"
+                                      style={{
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                      }}
+                                    >
+                                      {p.name}
+                                    </Text>
+                                    {address && (
+                                      <Text
+                                        size="xs"
+                                        c="dimmed"
+                                        style={{
+                                          whiteSpace: 'nowrap',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                        }}
+                                      >
+                                        {address.address}, {address.postalCode}{' '}
+                                        {address.city}
+                                      </Text>
+                                    )}
+                                  </Box>
+
+                                  {/* Col 3 : boutons monter / descendre */}
                                   <Group gap="xs">
-                                    <Badge variant="light">{m.distanceToString}</Badge>
-                                    <Badge variant="outline">{m.durationToString}</Badge>
+                                    <Tooltip label="Monter" color="dark">
+                                      <ActionIcon
+                                        variant="subtle"
+                                        aria-label="Monter"
+                                        disabled={idx === 0}
+                                        onClick={() => {
+                                          movePickUp(idx)
+                                          recalcAroundIndex(idx)
+                                        }}
+                                      >
+                                        <TbArrowUp />
+                                      </ActionIcon>
+                                    </Tooltip>
+                                    <Tooltip label="Descendre" color="dark">
+                                      <ActionIcon
+                                        variant="subtle"
+                                        aria-label="Descendre"
+                                        disabled={idx === picks.length - 1}
+                                        onClick={() => {
+                                          movePickDown(idx)
+                                          recalcAroundIndex(idx)
+                                        }}
+                                      >
+                                        <TbArrowDown />
+                                      </ActionIcon>
+                                    </Tooltip>
                                   </Group>
+
+                                  {/* Col 4 : suppression */}
+                                  <Tooltip
+                                    label="Supprimer l’étape"
+                                    color="dark"
+                                  >
+                                    <ActionIcon
+                                      variant="subtle"
+                                      color="red"
+                                      aria-label="Supprimer l’étape"
+                                      onClick={() => removePick(idx)}
+                                    >
+                                      <TbTrash />
+                                    </ActionIcon>
+                                  </Tooltip>
+                                </Group>
+                              </Paper>
+                            </div>
+                          )}
+                        </Transition>
+
+                        {/* Connecteur entre cette étape et la suivante */}
+                        {hasNext && (
+                          <Box
+                            pl={40}
+                            ml={8}
+                            style={{
+                              borderLeft: '1px dashed rgba(148,163,184,.5)',
+                            }}
+                          >
+                            <Box
+                              style={{
+                                marginLeft: 8,
+                                marginTop: 4,
+                                marginBottom: 4,
+                              }}
+                            >
+                              <Group gap="xs" align="center">
+                                {isLoading && <Loader size="xs" />}
+                                {!isLoading && metrics && (
+                                  <>
+                                    <Text size="xs" fw={500}>
+                                      {metrics.distanceToString}
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                      • {metrics.durationToString}
+                                    </Text>
+                                  </>
+                                )}
+                                {!isLoading && !metrics && (
+                                  <Text size="xs" c="dimmed">
+                                    Calcul en cours…
+                                  </Text>
                                 )}
                               </Group>
-                            </Paper>
-                          </div>
+                            </Box>
+                          </Box>
                         )}
-                      </Transition>
+                      </Stack>
                     )
                   })}
                 </Stack>
               </Paper>
+
+              {/* Ancien récapitulatif des segments (distance + durée)
+                  -> remplacé par les connecteurs entre étapes pour un affichage plus visuel. */}
 
               <Group justify="space-between" mt="md">
                 <Text size="sm" c="dimmed">
@@ -444,6 +532,7 @@ function Create({ addresses }: Props) {
         </Grid>
       </Container>
 
+      {/* Insertion après — Select compact */}
       {insertForIndex !== null && (
         <Paper
           withBorder
@@ -457,20 +546,20 @@ function Create({ addresses }: Props) {
             zIndex: 999,
             width: 420,
             maxWidth: 'calc(100% - 2rem)',
-            background: 'var(--mantine-color-body)',
+            background: 'rgba(15,23,42,.98)',
           }}
         >
-          <Stack>
-            <Title order={5}>Insérer une adresse après cette étape</Title>
+          <Stack gap="sm">
+            <Text fw={500}>Insérer une adresse après cette étape</Text>
             <Select
+              placeholder="Choisir une adresse"
               data={selectData}
-              searchable
-              nothingFoundMessage="Aucune adresse"
               value={insertValue}
               onChange={setInsertValue}
-              placeholder="Rechercher…"
+              searchable
+              nothingFoundMessage="Aucune adresse"
             />
-            <Group justify="end">
+            <Group justify="flex-end" gap="xs">
               <Button
                 variant="default"
                 onClick={() => {
@@ -487,15 +576,6 @@ function Create({ addresses }: Props) {
           </Stack>
         </Paper>
       )}
-
-      {/* Modal suppression étape */}
-      <ConfirmDeleteModal
-        opened={deleteOpened}
-        loading={deleteLoading}
-        onCancel={() => setDeleteOpened(false)}
-        onConfirm={confirmDelete}
-        description="Supprimer cette étape du trajet ?"
-      />
     </>
   )
 }
