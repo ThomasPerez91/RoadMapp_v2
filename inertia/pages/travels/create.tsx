@@ -425,8 +425,17 @@ function Create({ addresses }: Props) {
                 </Stack>
               </Paper>
 
-              <Group justify="end">
-                <Button disabled={!canSave} onClick={save}>
+              <Group justify="space-between" mt="md">
+                <Text size="sm" c="dimmed">
+                  Toutes les étapes doivent être renseignées pour enregistrer le trajet.
+                </Text>
+                <Button
+                  radius="xl"
+                  variant="gradient"
+                  gradient={{ from: 'ocean', to: 'plum', deg: 60 }}
+                  disabled={!canSave}
+                  onClick={save}
+                >
                   Enregistrer le trajet
                 </Button>
               </Group>
@@ -435,7 +444,6 @@ function Create({ addresses }: Props) {
         </Grid>
       </Container>
 
-      {/* Insertion après — Select compact */}
       {insertForIndex !== null && (
         <Paper
           withBorder
