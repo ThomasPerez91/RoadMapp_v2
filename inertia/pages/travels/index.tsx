@@ -9,6 +9,8 @@ import type { PaginationMeta } from '~/types/app'
 import { PageInfoButton } from '~/components/page_info'
 import { TravelActionMenu } from '~/components/travels/travel_action_menu'
 import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal'
+import { FlashMessages } from '~/components/flash_messages'
+
 
 type TravelRow = {
   id: number
@@ -25,6 +27,8 @@ interface IndexProps {
 function Index({ travels, meta }: IndexProps) {
   const [items, setItems] = useState(travels)
   const [page, setPage] = useState(meta.currentPage)
+  const [flash, setFlash] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
 
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -51,10 +55,16 @@ function Index({ travels, meta }: IndexProps) {
   const confirmDelete = async () => {
     if (!deleteId) return
     setConfirmLoading(true)
+    setFlash(null)
     try {
       await router.delete(`/api/travels/${deleteId}`)
-      // Recharge la liste après suppression
+      setFlash({ type: 'success', message: 'Trajet supprimé' })
       router.reload({ only: ['travels', 'meta'] })
+    } catch (error: any) {
+      setFlash({
+        type: 'error',
+        message: error.message ?? 'Erreur lors de la suppression du trajet',
+      })
     } finally {
       setConfirmLoading(false)
       setConfirmOpen(false)
@@ -62,9 +72,11 @@ function Index({ travels, meta }: IndexProps) {
     }
   }
 
+
   return (
     <>
       <Head title="Trajets" />
+      <FlashMessages flash={flash} />
       <Container py="lg">
         <Group justify="space-between" mb="md" align="center">
           <Group gap="xs" align="center">

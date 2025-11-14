@@ -1,4 +1,3 @@
-// inertia/components/addresses/address_book.tsx
 import {
   ActionIcon,
   Badge,
@@ -30,12 +29,6 @@ type AddressBookProps = {
   title?: string
 }
 
-/**
- * Bouton d’adresse :
- * - n’affiche que le nom
- * - tooltip = adresse complète
- * - un peu d’animation hover/active
- */
 function AddressItem({
   addr,
   onAdd,
@@ -46,42 +39,59 @@ function AddressItem({
   const fullAddress = `${addr.address}, ${addr.postalCode} ${addr.city}`
 
   return (
-    <Tooltip label={fullAddress} withArrow openDelay={250}>
+    <Tooltip
+      label={fullAddress}
+      withArrow
+      openDelay={250}
+      color="dark"
+      position="right"
+      styles={{
+        tooltip: {
+          background: 'linear-gradient(180deg, rgba(7,14,24,.96), rgba(7,14,24,.9))',
+          border: '1px solid rgba(255,255,255,.12)',
+          boxShadow: '0 18px 45px rgba(15,23,42,.85)',
+        },
+        arrow: {
+          background: 'linear-gradient(180deg, rgba(7,14,24,.96), rgba(7,14,24,.9))',
+        },
+      }}
+    >
       <Button
         onClick={() => onAdd(addr)}
-        variant="light"
-        color="gray"
+        variant="subtle"
         radius="xl"
         size="md"
         fullWidth
         styles={{
           root: {
-            justifyContent: 'center',
-            background: 'rgba(255,255,255,.06)',
-            transition: 'transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease',
-            backdropFilter: 'blur(4px)',
+            justifyContent: 'flex-start',
+            background: 'rgba(15,23,42,.88)',
+            border: '1px solid rgba(148,163,184,.35)',
+            backdropFilter: 'blur(10px)',
+            paddingInline: '0.75rem',
+            transition:
+              'transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease, border-color 120ms ease',
+            '&:hover': {
+              background:
+                'linear-gradient(120deg, rgba(56,189,248,.16), rgba(129,140,248,.12))',
+              borderColor: 'rgba(129,140,248,.85)',
+              boxShadow: '0 14px 35px rgba(15,23,42,.9)',
+              transform: 'translateY(-1px)',
+            },
+            '&:active': {
+              transform: 'translateY(1px) scale(0.98)',
+              boxShadow: '0 6px 18px rgba(15,23,42,.75)',
+            },
           },
           label: {
-            fontWeight: 700,
+            fontWeight: 600,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             width: '100%',
-            textAlign: 'center',
+            textAlign: 'left',
+            letterSpacing: '0.01em',
           },
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = '0 8px 18px rgba(0,0,0,.18)'
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = ''
-          e.currentTarget.style.transform = ''
-        }}
-        onMouseDown={(e) => {
-          e.currentTarget.style.transform = 'translateY(1px) scale(0.99)'
-        }}
-        onMouseUp={(e) => {
-          e.currentTarget.style.transform = ''
         }}
       >
         {addr.name}
@@ -90,13 +100,6 @@ function AddressItem({
   )
 }
 
-/**
- * Carnet d’adresses :
- * - groupé par initiale (A / B / …)
- * - affichage du nombre total
- * - bouton Maison à côté du titre
- * - on n’affiche pas l’adresse isHome dans la liste (uniquement via le bouton maison)
- */
 export function AddressBook({
   addresses,
   homeAddress,
@@ -123,38 +126,74 @@ export function AddressBook({
   }, [list])
 
   return (
-    <Paper withBorder p="md" radius="lg">
+    <Paper
+      withBorder
+      p="md"
+      radius="lg"
+      shadow="sm"
+      style={{
+        background: 'linear-gradient(145deg, rgba(7,14,24,.98), rgba(15,23,42,.96))',
+        borderColor: 'rgba(148,163,184,.35)',
+      }}
+    >
       <Group justify="space-between" mb="xs">
         <Group gap="xs">
           <Title order={4}>{title}</Title>
           {homeAddress && (
-            <Tooltip label="Ajouter l’adresse Maison" withArrow>
+            <Tooltip
+              label="Ajouter l’adresse Maison"
+              withArrow
+              color="dark"
+              position="right"
+              styles={{
+                tooltip: {
+                  background: 'linear-gradient(180deg, rgba(7,14,24,.96), rgba(7,14,24,.9))',
+                  border: '1px solid rgba(255,255,255,.12)',
+                  boxShadow: '0 18px 45px rgba(15,23,42,.85)',
+                },
+                arrow: {
+                  background: 'linear-gradient(180deg, rgba(7,14,24,.96), rgba(7,14,24,.9))',
+                },
+              }}
+            >
               <ActionIcon
                 variant="light"
                 title="Ajouter Maison"
                 aria-label="Ajouter Maison"
                 onClick={(e) => {
-                  e.stopPropagation()
+                  e.preventDefault()
                   onAdd(homeAddress)
                 }}
               >
-                <TbHome />
+                <TbHome size={16} />
               </ActionIcon>
             </Tooltip>
           )}
         </Group>
-        <Badge variant="light">{list.length}</Badge>
+
+        <Badge variant="light" size="sm">
+          {addresses.length} adresse{addresses.length > 1 ? 's' : ''}
+        </Badge>
       </Group>
+
+      <Text size="xs" c="dimmed" mb="sm">
+        Sélectionnez une adresse pour l’ajouter au trajet.
+      </Text>
+
+      <Divider my="sm" opacity={0.5} />
 
       <Stack gap="xs" style={{ maxHeight: 460, overflowY: 'auto' }}>
         {groups.map(([letter, arr]) => (
-          <Stack key={letter} gap="xs">
+          <Stack key={letter} gap={4}>
             <Divider
-              my="xs"
-              label={<Text fw={700}>{letter}</Text>}
+              label={letter}
               labelPosition="left"
               styles={{
-                label: { color: 'var(--mantine-color-dimmed)' },
+                label: {
+                  color: 'var(--mantine-color-dimmed)',
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                },
               }}
             />
             <Stack gap="xs">
