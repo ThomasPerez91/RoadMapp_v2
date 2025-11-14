@@ -2,11 +2,13 @@
 import { Head, router } from '@inertiajs/react'
 import { Button, Container, Group, Pagination, Title } from '@mantine/core'
 import { useEffect, useState } from 'react'
-import { TbPlus } from 'react-icons/tb'
+import { TbMapPinPlus } from 'react-icons/tb'
 import { DataTable } from '~/components/generics/data_table'
 import UserLayout from '~/layouts/user_layout'
 import type { PaginationMeta } from '~/types/app'
 import { PageInfoButton } from '~/components/page_info'
+import { TravelActionMenu } from '~/components/travels/travel_action_menu'
+import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal'
 
 type TravelRow = {
   id: number
@@ -24,17 +26,40 @@ function Index({ travels, meta }: IndexProps) {
   const [items, setItems] = useState(travels)
   const [page, setPage] = useState(meta.currentPage)
 
+  const [deleteId, setDeleteId] = useState<number | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmLoading, setConfirmLoading] = useState(false)
+
   useEffect(() => {
     setItems(travels)
     setPage(meta.currentPage)
   }, [travels, meta.currentPage])
 
   const gotoPage = (p: number) => {
-    router.get('/travels', { page: p }, { preserveState: true, preserveScroll: true })
+    router.get('/travels', { page: p }, { preserveState: true })
   }
 
   const goCreate = () => {
-    router.get('/travels/create')
+    router.visit('/travels/create')
+  }
+
+  const askDelete = (id: number) => {
+    setDeleteId(id)
+    setConfirmOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteId) return
+    setConfirmLoading(true)
+    try {
+      await router.delete(`/api/travels/${deleteId}`)
+      // Recharge la liste après suppression
+      router.reload({ only: ['travels', 'meta'] })
+    } finally {
+      setConfirmLoading(false)
+      setConfirmOpen(false)
+      setDeleteId(null)
+    }
   }
 
   return (
@@ -52,7 +77,7 @@ function Index({ travels, meta }: IndexProps) {
             radius="xl"
             variant="gradient"
             gradient={{ from: 'ocean', to: 'plum', deg: 60 }}
-            leftSection={<TbPlus size={16} />}
+            leftSection={<TbMapPinPlus size={16} />}
             aria-label="Créer un trajet"
           >
             Créer un trajet
@@ -67,6 +92,18 @@ function Index({ travels, meta }: IndexProps) {
               sortFn: (a: TravelRow, b: TravelRow) => a.date.localeCompare(b.date),
             },
             { key: 'distanceToString', label: 'Distance' },
+            {
+              key: 'actions',
+              label: '',
+              render: (row: TravelRow) => (
+                <TravelActionMenu
+                  onEdit={() => router.visit(`/travels/${row.id}/edit`)}
+                  onDelete={() => askDelete(row.id)}
+                />
+              ),
+              align: 'right',
+              width: 80,
+            },
           ]}
           data={items}
           emptyMessage="Aucun trajet"
@@ -82,6 +119,17 @@ function Index({ travels, meta }: IndexProps) {
           mt="md"
         />
       </Container>
+
+      <ConfirmDeleteModal
+        opened={confirmOpen}
+        loading={confirmLoading}
+        onCancel={() => {
+          setConfirmOpen(false)
+          setDeleteId(null)
+        }}
+        onConfirm={confirmDelete}
+        description="Ce trajet sera définitivement supprimé."
+      />
     </>
   )
 }
