@@ -10,7 +10,7 @@ import { PageInfoButton } from '~/components/page_info'
 import { TravelActionMenu } from '~/components/travels/travel_action_menu'
 import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal'
 import { FlashMessages } from '~/components/flash_messages'
-
+import { jsonFetch } from '~/services/http'
 
 type TravelRow = {
   id: number
@@ -28,7 +28,6 @@ function Index({ travels, meta }: IndexProps) {
   const [items, setItems] = useState(travels)
   const [page, setPage] = useState(meta.currentPage)
   const [flash, setFlash] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-
 
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -57,13 +56,17 @@ function Index({ travels, meta }: IndexProps) {
     setConfirmLoading(true)
     setFlash(null)
     try {
-      await router.delete(`/api/travels/${deleteId}`)
+      await jsonFetch(`/api/travels/${deleteId}`, {
+        method: 'DELETE',
+        parseResponse: false, // l’API renvoie juste un JSON de succès, pas besoin de le lire
+      })
+
       setFlash({ type: 'success', message: 'Trajet supprimé' })
       router.reload({ only: ['travels', 'meta'] })
     } catch (error: any) {
       setFlash({
         type: 'error',
-        message: error.message ?? 'Erreur lors de la suppression du trajet',
+        message: error?.message ?? 'Erreur lors de la suppression du trajet',
       })
     } finally {
       setConfirmLoading(false)
@@ -71,7 +74,6 @@ function Index({ travels, meta }: IndexProps) {
       setDeleteId(null)
     }
   }
-
 
   return (
     <>
