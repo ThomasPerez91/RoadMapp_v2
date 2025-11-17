@@ -19,7 +19,7 @@ import {
 import { DateInput } from '@mantine/dates'
 import { notifications } from '@mantine/notifications'
 import dayjs from 'dayjs'
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { TbArrowDown, TbArrowUp, TbPlus, TbTrash } from 'react-icons/tb'
 import { LuMapPinHouse, LuMapPin, LuMapPinCheck } from 'react-icons/lu'
 import UserLayout from '~/layouts/user_layout'
@@ -27,6 +27,7 @@ import {
   AddressBook,
   type AddressBookAddress as Address,
 } from '~/components/addresses/address_book'
+import { jsonFetch } from '~/services/http'
 
 type Metrics = {
   distance: number
@@ -60,10 +61,7 @@ function Create({ addresses }: Props) {
     return m
   }, [addresses])
 
-  const homeAddress = useMemo(
-    () => addresses.find((a) => a.isHome) ?? null,
-    [addresses]
-  )
+  const homeAddress = useMemo(() => addresses.find((a) => a.isHome) ?? null, [addresses])
 
   const segments = useMemo(() => {
     const out: Array<[Pick, Pick]> = []
@@ -124,22 +122,29 @@ function Create({ addresses }: Props) {
     })
   }
 
-  // Chargement des métriques depuis localStorage
+  // Chargement des métriques depuis localStorage (avec TTL)
   useEffect(() => {
     const map: Record<string, Metrics> = {}
+    const now = Date.now()
+
     for (const [a, b] of segments) {
       const key = segKey(a.id, b.id)
-      const lsK = lsKey(a.id, b.id)
-      const cached = window.localStorage.getItem(lsK)
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached) as Metrics
-          map[key] = parsed
-        } catch {
-          // ignore
+      const storageKey = lsKey(a.id, b.id)
+      const cached = window.localStorage.getItem(storageKey)
+      if (!cached) continue
+
+      try {
+        const { ttl, data } = JSON.parse(cached) as { ttl: number; data: Metrics }
+        if (ttl > now) {
+          map[key] = data
+        } else {
+          window.localStorage.removeItem(storageKey)
         }
+      } catch {
+        window.localStorage.removeItem(storageKey)
       }
     }
+
     setMetricsMap(map)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [segments.length])
@@ -148,22 +153,29 @@ function Create({ addresses }: Props) {
     const key = segKey(a.id, b.id)
     if (metricsMap[key] || resolving[key]) return
 
+    const startId = a.id
+    const endId = b.id
+    const now = Date.now()
+
     setResolving((prev) => ({ ...prev, [key]: true }))
     try {
-      const response = await fetch(`/api/metrics?start_id=${a.id}&end_id=${b.id}`)
-      if (!response.ok) throw new Error('Erreur lors du calcul de la distance')
-      const data = (await response.json()) as Metrics
+      const url = new URL('/api/metrics', window.location.origin)
+      url.searchParams.set('startId', String(startId))
+      url.searchParams.set('endId', String(endId))
 
-      setMetricsMap((prev) => {
-        const next = { ...prev, [key]: data }
-        window.localStorage.setItem(lsKey(a.id, b.id), JSON.stringify(data))
-        return next
-      })
+      const res = await fetch(url.toString())
+      if (!res.ok) throw new Error('metrics failed')
+
+      const data = (await res.json()) as Metrics
+      setMetricsMap((prev) => ({ ...prev, [key]: data }))
+
+      const ttl = now + 7 * 24 * 60 * 60 * 1000
+      window.localStorage.setItem(lsKey(startId, endId), JSON.stringify({ ttl, data }))
     } catch (error: any) {
       notifications.show({
         color: 'red',
-        title: 'Erreur de calcul',
-        message: error.message ?? 'Impossible de calculer la distance pour ce segment.',
+        title: 'Erreur métriques',
+        message: error?.message ?? 'Impossible de récupérer la distance pour ce segment.',
       })
     } finally {
       setResolving((prev) => {
@@ -183,19 +195,20 @@ function Create({ addresses }: Props) {
       const [aId, bId] = prevKey.split('-').map(Number)
       const a = { id: aId, name: allAddressesById.get(aId)?.name ?? '' }
       const b = { id: bId, name: allAddressesById.get(bId)?.name ?? '' }
-      fetchMetricsForSegment(a, b)
+      void fetchMetricsForSegment(a, b)
     }
     if (nextKey) {
       const [aId, bId] = nextKey.split('-').map(Number)
       const a = { id: aId, name: allAddressesById.get(aId)?.name ?? '' }
       const b = { id: bId, name: allAddressesById.get(bId)?.name ?? '' }
-      fetchMetricsForSegment(a, b)
+      void fetchMetricsForSegment(a, b)
     }
   }
 
+  // Résolution initiale
   useEffect(() => {
     segments.forEach(([a, b]) => {
-      fetchMetricsForSegment(a, b)
+      void fetchMetricsForSegment(a, b)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [segments.length])
@@ -205,8 +218,7 @@ function Create({ addresses }: Props) {
     [segKeysSet, metricsMap]
   )
 
-  const canSave =
-    date && picks.length >= 2 && Array.from(segKeysSet).every((k) => !!metricsMap[k])
+  const canSave = date && picks.length >= 2 && Array.from(segKeysSet).every((k) => !!metricsMap[k])
 
   async function save() {
     if (!date) return
@@ -227,13 +239,18 @@ function Create({ addresses }: Props) {
       })
     }
 
-    await router.post('/api/travels', {
-      date: dayjs(date).format('YYYY-MM-DD'),
-      legs,
+    await jsonFetch('/api/travels', {
+      method: 'POST',
+      payload: {
+        date: dayjs(date).format('YYYY-MM-DD'),
+        legs,
+      },
+      parseResponse: false,
     })
+
+    router.visit('/travels')
   }
 
-  // --- Insertion via Select ---
   const selectData = useMemo(
     () =>
       addresses.map((a) => ({
@@ -274,9 +291,52 @@ function Create({ addresses }: Props) {
                   </Text>
                   <DateInput
                     value={date}
-                    onChange={setDate}
+                    onChange={(value) => setDate(value ? new Date(value) : null)}
                     valueFormat="DD/MM/YYYY"
                     aria-label="Date du trajet"
+                    popoverProps={{
+                      withinPortal: true,
+                      shadow: 'xl',
+                      radius: 'lg',
+                      styles: {
+                        dropdown: {
+                          background:
+                            'linear-gradient(145deg, rgba(7,14,24,.98), rgba(15,23,42,.96))',
+                          border: '1px solid rgba(148,163,184,.45)',
+                        },
+                      },
+                    }}
+                    styles={{
+                      input: {
+                        background: 'rgba(15,23,42,.9)',
+                        borderColor: 'rgba(56,189,248,.6)',
+                        borderWidth: 1,
+                        borderStyle: 'solid',
+                        color: '#e5e7eb',
+                      },
+                      // Ces clés sont prises en charge par le calendrier interne
+                      day: {
+                        '&[dataSelected]': {
+                          background:
+                            'linear-gradient(135deg, rgba(56,189,248,.8), rgba(129,140,248,.9))',
+                          color: 'white',
+                        },
+                        '&[dataInRange]': {
+                          background: 'rgba(56,189,248,.15)',
+                        },
+                        '&[dataWeekend]': {
+                          color: '#f97373',
+                        },
+                      },
+                      weekday: {
+                        color: '#9ca3af',
+                        fontWeight: 500,
+                      },
+                      month: {
+                        color: '#e5e7eb',
+                        fontWeight: 600,
+                      },
+                    }}
                   />
                 </Stack>
               </Paper>
@@ -292,15 +352,13 @@ function Create({ addresses }: Props) {
           {/* Colonne droite : étapes & aperçu */}
           <Grid.Col span={{ base: 12, md: 8 }}>
             <Stack gap="md">
-              <Group justify="space-between" align="flex-start">
-                <div>
+              {/* HEADER : titre gauche / distance centre / bouton droite */}
+              <Group justify="space-between" align="center">
+                <Box>
                   <Title order={3}>Étapes du trajet</Title>
-                  <Text size="sm" c="dimmed">
-                    Ajoutez au moins un point de départ et une arrivée pour construire votre trajet.
-                  </Text>
-                </div>
+                </Box>
 
-                <Box ta="right">
+                <Box ta="center">
                   <Text size="xs" c="dimmed">
                     Distance totale estimée
                   </Text>
@@ -308,6 +366,16 @@ function Create({ addresses }: Props) {
                     {totalDistance > 0 ? formatKm(totalDistance) : 'En attente des étapes'}
                   </Text>
                 </Box>
+
+                <Button
+                  radius="xl"
+                  variant="gradient"
+                  gradient={{ from: 'ocean', to: 'plum', deg: 60 }}
+                  disabled={!canSave}
+                  onClick={save}
+                >
+                  Enregistrer le trajet
+                </Button>
               </Group>
 
               <Paper withBorder radius="lg" p="md">
@@ -332,17 +400,14 @@ function Create({ addresses }: Props) {
 
                     const address = allAddressesById.get(p.id)
 
-                    // Infos sur le segment vers l’étape suivante (si elle existe)
                     const hasNext = !isLast && picks[idx + 1]
                     const nextPick = hasNext ? picks[idx + 1] : null
-                    const segmentKey =
-                      hasNext && nextPick ? segKey(p.id, nextPick.id) : null
+                    const segmentKey = hasNext && nextPick ? segKey(p.id, nextPick.id) : null
                     const metrics = segmentKey ? metricsMap[segmentKey] : undefined
-                    const isLoading =
-                      segmentKey ? resolving[segmentKey] && !metrics : false
+                    const isLoading = segmentKey ? resolving[segmentKey] && !metrics : false
 
                     return (
-                      <Stack key={`${p.id}-${idx}`} gap={4}>
+                      <Fragment key={`${p.id}-${idx}`}>
                         <Transition
                           mounted
                           transition="pop"
@@ -376,13 +441,8 @@ function Create({ addresses }: Props) {
                                       alignItems: 'center',
                                       justifyContent: 'center',
                                       background:
-                                        isFirst || isLast
-                                          ? 'linear-gradient(135deg, rgba(56,189,248,.28), rgba(129,140,248,.32))'
-                                          : 'rgba(15,23,42,1)',
-                                      border:
-                                        isFirst || isLast
-                                          ? '1px solid rgba(129,140,248,.8)'
-                                          : '1px solid rgba(51,65,85,.9)',
+                                        'linear-gradient(135deg, rgba(56,189,248,.28), rgba(129,140,248,.32))',
+                                      border: '1px solid rgba(129,140,248,.8)',
                                     }}
                                   >
                                     {icon}
@@ -411,13 +471,12 @@ function Create({ addresses }: Props) {
                                           textOverflow: 'ellipsis',
                                         }}
                                       >
-                                        {address.address}, {address.postalCode}{' '}
-                                        {address.city}
+                                        {address.address}, {address.postalCode} {address.city}
                                       </Text>
                                     )}
                                   </Box>
 
-                                  {/* Col 3 : boutons monter / descendre */}
+                                  {/* Col 3 : monter / descendre / insérer */}
                                   <Group gap="xs">
                                     <Tooltip label="Monter" color="dark">
                                       <ActionIcon
@@ -445,13 +504,19 @@ function Create({ addresses }: Props) {
                                         <TbArrowDown />
                                       </ActionIcon>
                                     </Tooltip>
+                                    <Tooltip label="Insérer une adresse après" color="dark">
+                                      <ActionIcon
+                                        variant="subtle"
+                                        aria-label="Insérer après"
+                                        onClick={() => openInsertAfter(idx)}
+                                      >
+                                        <TbPlus />
+                                      </ActionIcon>
+                                    </Tooltip>
                                   </Group>
 
                                   {/* Col 4 : suppression */}
-                                  <Tooltip
-                                    label="Supprimer l’étape"
-                                    color="dark"
-                                  >
+                                  <Tooltip label="Supprimer l’étape" color="dark">
                                     <ActionIcon
                                       variant="subtle"
                                       color="red"
@@ -479,8 +544,8 @@ function Create({ addresses }: Props) {
                             <Box
                               style={{
                                 marginLeft: 8,
-                                marginTop: 4,
-                                marginBottom: 4,
+                                marginTop: 8,
+                                marginBottom: 8,
                               }}
                             >
                               <Group gap="xs" align="center">
@@ -504,19 +569,14 @@ function Create({ addresses }: Props) {
                             </Box>
                           </Box>
                         )}
-                      </Stack>
+                      </Fragment>
                     )
                   })}
                 </Stack>
               </Paper>
 
-              {/* Ancien récapitulatif des segments (distance + durée)
-                  -> remplacé par les connecteurs entre étapes pour un affichage plus visuel. */}
-
-              <Group justify="space-between" mt="md">
-                <Text size="sm" c="dimmed">
-                  Toutes les étapes doivent être renseignées pour enregistrer le trajet.
-                </Text>
+              {/* Bas : bouton aligné à droite */}
+              <Group justify="flex-end" mt="md">
                 <Button
                   radius="xl"
                   variant="gradient"
