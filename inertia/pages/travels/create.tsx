@@ -8,6 +8,7 @@ import {
   Grid,
   Group,
   Loader,
+  Modal,
   Paper,
   Select,
   Stack,
@@ -20,7 +21,7 @@ import { DateInput } from '@mantine/dates'
 import { notifications } from '@mantine/notifications'
 import dayjs from 'dayjs'
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { TbArrowDown, TbArrowUp, TbPlus, TbTrash } from 'react-icons/tb'
+import { TbArrowDown, TbArrowUp, TbPlus, TbTrash, TbX } from 'react-icons/tb'
 import { LuMapPinHouse, LuMapPin, LuMapPinCheck } from 'react-icons/lu'
 import UserLayout from '~/layouts/user_layout'
 import {
@@ -74,9 +75,6 @@ function Create({ addresses }: Props) {
     [segments]
   )
 
-  const segKeyFromIndex = (idx: number) =>
-    idx < 0 || idx >= picks.length - 1 ? null : segKey(picks[idx].id, picks[idx + 1].id)
-
   function addPick(address: Address, insertIndex?: number) {
     if (
       insertIndex === undefined &&
@@ -123,6 +121,7 @@ function Create({ addresses }: Props) {
   }
 
   // Chargement des métriques depuis localStorage (avec TTL)
+  // -> dépend maintenant de `segments` complet, pas juste de sa longueur
   useEffect(() => {
     const map: Record<string, Metrics> = {}
     const now = Date.now()
@@ -147,7 +146,7 @@ function Create({ addresses }: Props) {
 
     setMetricsMap(map)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments.length])
+  }, [segments])
 
   async function fetchMetricsForSegment(a: Pick, b: Pick) {
     const key = segKey(a.id, b.id)
@@ -186,32 +185,13 @@ function Create({ addresses }: Props) {
     }
   }
 
-  // Recalcul des métriques lorsque des étapes changent autour d’un index
-  function recalcAroundIndex(idx: number) {
-    const prevKey = segKeyFromIndex(idx - 1)
-    const nextKey = segKeyFromIndex(idx)
-
-    if (prevKey) {
-      const [aId, bId] = prevKey.split('-').map(Number)
-      const a = { id: aId, name: allAddressesById.get(aId)?.name ?? '' }
-      const b = { id: bId, name: allAddressesById.get(bId)?.name ?? '' }
-      void fetchMetricsForSegment(a, b)
-    }
-    if (nextKey) {
-      const [aId, bId] = nextKey.split('-').map(Number)
-      const a = { id: aId, name: allAddressesById.get(aId)?.name ?? '' }
-      const b = { id: bId, name: allAddressesById.get(bId)?.name ?? '' }
-      void fetchMetricsForSegment(a, b)
-    }
-  }
-
-  // Résolution initiale
+  // Résolution des métriques à chaque changement de segments (ajout, suppression, réordonnancement)
   useEffect(() => {
     segments.forEach(([a, b]) => {
       void fetchMetricsForSegment(a, b)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [segments.length])
+  }, [segments])
 
   const totalDistance = useMemo(
     () => Array.from(segKeysSet).reduce((sum, k) => sum + (metricsMap[k]?.distance ?? 0), 0),
@@ -286,9 +266,7 @@ function Create({ addresses }: Props) {
             <Stack gap="md">
               <Paper withBorder p="md" radius="lg">
                 <Stack gap="xs">
-                  <Text size="sm" c="dimmed">
-                    Date du trajet
-                  </Text>
+                  <Text size="sm">Date du trajet</Text>
                   <DateInput
                     value={date}
                     onChange={(value) => setDate(value ? new Date(value) : null)}
@@ -314,7 +292,6 @@ function Create({ addresses }: Props) {
                         borderStyle: 'solid',
                         color: '#e5e7eb',
                       },
-                      // Ces clés sont prises en charge par le calendrier interne
                       day: {
                         '&[dataSelected]': {
                           background:
@@ -352,7 +329,6 @@ function Create({ addresses }: Props) {
           {/* Colonne droite : étapes & aperçu */}
           <Grid.Col span={{ base: 12, md: 8 }}>
             <Stack gap="md">
-              {/* HEADER : titre gauche / distance centre / bouton droite */}
               <Group justify="space-between" align="center">
                 <Box>
                   <Title order={3}>Étapes du trajet</Title>
@@ -422,7 +398,7 @@ function Create({ addresses }: Props) {
                                 p="xs"
                                 style={{
                                   background: 'rgba(15,23,42,.9)',
-                                  borderColor: 'rgba(148,163,184,.4)',
+                                  borderColor: 'rgba(56,189,248,.6)',
                                 }}
                               >
                                 <Group
@@ -485,7 +461,6 @@ function Create({ addresses }: Props) {
                                         disabled={idx === 0}
                                         onClick={() => {
                                           movePickUp(idx)
-                                          recalcAroundIndex(idx)
                                         }}
                                       >
                                         <TbArrowUp />
@@ -498,7 +473,6 @@ function Create({ addresses }: Props) {
                                         disabled={idx === picks.length - 1}
                                         onClick={() => {
                                           movePickDown(idx)
-                                          recalcAroundIndex(idx)
                                         }}
                                       >
                                         <TbArrowDown />
@@ -538,7 +512,7 @@ function Create({ addresses }: Props) {
                             pl={40}
                             ml={8}
                             style={{
-                              borderLeft: '1px dashed rgba(148,163,184,.5)',
+                              borderLeft: '1px dashed rgba(56,189,248,.6)',
                             }}
                           >
                             <Box
@@ -592,50 +566,117 @@ function Create({ addresses }: Props) {
         </Grid>
       </Container>
 
-      {/* Insertion après — Select compact */}
-      {insertForIndex !== null && (
-        <Paper
-          withBorder
-          radius="lg"
-          p="md"
-          style={{
-            position: 'fixed',
-            left: '50%',
-            top: '20%',
-            transform: 'translateX(-50%)',
-            zIndex: 999,
-            width: 420,
-            maxWidth: 'calc(100% - 2rem)',
-            background: 'rgba(15,23,42,.98)',
-          }}
-        >
-          <Stack gap="sm">
-            <Text fw={500}>Insérer une adresse après cette étape</Text>
-            <Select
-              placeholder="Choisir une adresse"
-              data={selectData}
-              value={insertValue}
-              onChange={setInsertValue}
-              searchable
-              nothingFoundMessage="Aucune adresse"
-            />
-            <Group justify="flex-end" gap="xs">
-              <Button
-                variant="default"
-                onClick={() => {
-                  setInsertForIndex(null)
-                  setInsertValue(null)
-                }}
-              >
-                Annuler
-              </Button>
-              <Button leftSection={<TbPlus />} onClick={confirmInsertAfter} disabled={!insertValue}>
-                Insérer
-              </Button>
-            </Group>
-          </Stack>
-        </Paper>
-      )}
+      {/* Modal d’insertion après une étape */}
+      <Modal
+        opened={insertForIndex !== null}
+        onClose={() => {
+          setInsertForIndex(null)
+          setInsertValue(null)
+        }}
+        centered
+        size="lg"
+        radius="xl"
+        withCloseButton={false}
+        overlayProps={{
+          blur: 4,
+          opacity: 0.35,
+        }}
+        styles={{
+          content: {
+            background: 'linear-gradient(135deg, rgba(10,16,30,.97), rgba(15,23,42,.97))', // bleu nuit comme le reste
+            border: '1px solid rgba(56,189,248,.35)',
+            boxShadow: '0 22px 60px rgba(15,23,42,.9)',
+          },
+          header: {
+            display: 'none', // on gère notre propre header dedans
+          },
+          body: {
+            padding: 20,
+          },
+        }}
+      >
+        <Stack gap="md">
+          {/* Header custom */}
+          <Group justify="space-between" align="center">
+            <Text fw={600} size="lg">
+              Insérer une adresse après cette étape
+            </Text>
+            <ActionIcon
+              variant="subtle"
+              aria-label="Fermer"
+              onClick={() => {
+                setInsertForIndex(null)
+                setInsertValue(null)
+              }}
+            >
+              <TbX />
+            </ActionIcon>
+          </Group>
+
+          <Select
+            placeholder="Choisir une adresse"
+            data={selectData}
+            value={insertValue}
+            onChange={setInsertValue}
+            searchable
+            nothingFoundMessage="Aucune adresse"
+            comboboxProps={{
+              withinPortal: true,
+              zIndex: 4000,
+            }}
+            maxDropdownHeight={260}
+            styles={(theme) => ({
+              input: {
+                'background': 'rgba(15,23,42,.95)', // bleu nuit comme le reste
+                'borderColor': 'rgba(56,189,248,.6)',
+                'borderWidth': 1,
+                'borderStyle': 'solid',
+                'color': '#e5e7eb',
+                'borderRadius': 12,
+                '::placeholder': {
+                  color: '#6b7280',
+                },
+              },
+              dropdown: {
+                background: 'linear-gradient(145deg, rgba(7,14,24,.98), rgba(15,23,42,.96))',
+                border: '1px solid rgba(56,189,248,.35)',
+                boxShadow: '0 18px 40px rgba(15,23,42,.9)',
+              },
+              option: {
+                'fontSize': 14,
+                'paddingTop': 8,
+                'paddingBottom': 8,
+                'paddingLeft': 10,
+                'paddingRight': 10,
+                '&[dataSelected]': {
+                  '&, &:hover': {
+                    backgroundColor: 'rgba(56,189,248,.28)',
+                    color: theme.white,
+                  },
+                },
+                '&[dataHovered]': {
+                  backgroundColor: 'rgba(56,189,248,.18)',
+                },
+              },
+            })}
+          />
+
+          {/* Boutons */}
+          <Group justify="flex-end" gap="xs">
+            <Button
+              onClick={() => {
+                setInsertForIndex(null)
+                setInsertValue(null)
+              }}
+            >
+              Annuler
+            </Button>
+            <Button leftSection={<LuMapPin />} onClick={confirmInsertAfter} disabled={!insertValue}>
+              Insérer
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </>
   )
 }
