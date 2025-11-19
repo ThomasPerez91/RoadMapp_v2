@@ -49,3 +49,31 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+@keyframes roadmapp-blue-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 rgba(56, 189, 248, 0),
+      0 0 4px rgba(56, 189, 248, 0.7),
+      inset 0 0 4px rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow:
+      0 0 12px rgba(56, 189, 248, 0.7),
+      0 0 24px rgba(56, 189, 248, 0.4),
+      inset 0 0 5px rgba(255, 255, 255, 0.25);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 rgba(56, 189, 248, 0),
+      0 0 4px rgba(56, 189, 248, 0.7),
+      inset 0 0 4px rgba(255, 255, 255, 0.2);
+  }
+}
+
+.roadmapp-metric-dot {
+  animation: roadmapp-blue-pulse 1.8s ease-out infinite;
+}
