@@ -1,55 +1,52 @@
 import { Head, router } from '@inertiajs/react'
 import { Container, Grid } from '@mantine/core'
 import dayjs from 'dayjs'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import UserLayout from '~/layouts/user_layout'
 import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal'
 import type { AddressBookAddress as Address } from '~/components/addresses/address_book'
-import useTravelPlanner, { type InitialLeg } from '~/hooks/use_travel_planner'
+import useTravelPlanner from '~/hooks/use_travel_planner'
 import { TravelDateAndAddressBook } from '~/components/travels/travel_date_and_book'
 import { TravelStepsColumn } from '~/components/travels/travel_steps_panel'
 import { TravelInsertModal } from '~/components/travels/travel_insert_modal'
 import { TravelAddressDrawer } from '~/components/travels/travel_address_drawer'
-
-type Leg = {
-  id: number
-  startId: number
-  endId: number
-  distance: number
-  duration: number
-  distanceToString: string
-  durationToString: string
-}
+import { jsonFetch } from '~/services/http'
 
 type Props = {
   travel: { id: number; date: string }
-  legs: Leg[]
+  picksIds: number[]
   addresses: Address[]
 }
 
-function Edit({ travel, legs, addresses }: Props) {
+function Edit({ travel, picksIds, addresses }: Props) {
   const [deleteIdx, setDeleteIdx] = useState<number | null>(null)
   const [deleteOpened, setDeleteOpened] = useState(false)
   const [addressDrawerOpened, setAddressDrawerOpened] = useState(false)
 
-  const initialLegs: InitialLeg[] = legs.map((l) => ({
-    startId: l.startId,
-    endId: l.endId,
-    distance: l.distance,
-    duration: l.duration,
-    distanceToString: l.distanceToString,
-    durationToString: l.durationToString,
-  }))
+  // Reconstitue les étapes à partir des IDs + adresses
+  const initialPicks = useMemo(
+    () =>
+      picksIds.map((id) => ({
+        id,
+        name: addresses.find((a) => a.id === id)?.name ?? `Adresse #${id}`,
+      })),
+    [picksIds, addresses]
+  )
 
   const planner = useTravelPlanner({
     addresses,
     initialDate: new Date(travel.date),
-    initialLegs,
+    initialPicks,
     onSave: async ({ date, legs: payloadLegs }) => {
-      await router.put(`/api/travels/${travel.id}`, {
-        date: dayjs(date).format('YYYY-MM-DD'),
-        legs: payloadLegs,
+      await jsonFetch(`/api/travels/${travel.id}`, {
+        method: 'PUT',
+        payload: {
+          date: dayjs(date).format('YYYY-MM-DD'),
+          legs: payloadLegs,
+        },
+        parseResponse: false,
       })
+      router.visit('/travels')
     },
   })
 
@@ -104,6 +101,7 @@ function Edit({ travel, legs, addresses }: Props) {
         </Grid>
       </Container>
 
+      {/* Modal d’insertion après une étape */}
       <TravelInsertModal
         opened={planner.insertForIndex !== null}
         selectData={planner.selectData}
@@ -113,6 +111,7 @@ function Edit({ travel, legs, addresses }: Props) {
         onConfirm={planner.confirmInsertAfter}
       />
 
+      {/* Drawer mobile pour choisir une adresse */}
       <TravelAddressDrawer
         opened={addressDrawerOpened}
         onClose={() => setAddressDrawerOpened(false)}
@@ -121,6 +120,7 @@ function Edit({ travel, legs, addresses }: Props) {
         onAddAddress={handleAddFromDrawer}
       />
 
+      {/* Confirmation de suppression d’étape */}
       <ConfirmDeleteModal
         opened={deleteOpened}
         onCancel={() => setDeleteOpened(false)}

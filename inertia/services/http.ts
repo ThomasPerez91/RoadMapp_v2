@@ -13,24 +13,24 @@ export interface JsonFetchOptions extends Omit<RequestInit, 'body'> {
 
 export async function jsonFetch<T = unknown>(
   input: RequestInfo | URL,
-  { payload, parseResponse = true, includeCsrf = true, headers, ...init }: JsonFetchOptions = {},
+  { payload, parseResponse = true, includeCsrf = true, headers, ...init }: JsonFetchOptions = {}
 ): Promise<T | void> {
   const finalHeaders = new Headers(headers)
 
   finalHeaders.set('Accept', 'application/json')
 
+  const requestInit: RequestInit = {
+    ...init,
+    headers: finalHeaders,
+  }
+
   if (payload !== undefined) {
     finalHeaders.set('Content-Type', 'application/json')
-    init.body = JSON.stringify(payload)
+    requestInit.body = JSON.stringify(payload)
   }
 
   if (includeCsrf) {
     finalHeaders.set('X-XSRF-TOKEN', getCsrfTokenFromCookie())
-  }
-
-  const requestInit: RequestInit = {
-    ...init,
-    headers: finalHeaders,
   }
 
   if (!requestInit.credentials) {

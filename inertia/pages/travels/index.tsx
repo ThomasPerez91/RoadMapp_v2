@@ -1,6 +1,17 @@
 // inertia/pages/travels/index.tsx
 import { Head, router } from '@inertiajs/react'
-import { Button, Container, Group, Pagination, Title } from '@mantine/core'
+import {
+  Badge,
+  Box,
+  Button,
+  Container,
+  Group,
+  Pagination,
+  Paper,
+  Stack,
+  Text,
+  Title,
+} from '@mantine/core'
 import { useEffect, useState } from 'react'
 import { TbMapPinPlus } from 'react-icons/tb'
 import { DataTable } from '~/components/generics/data_table'
@@ -17,6 +28,7 @@ type TravelRow = {
   date: string
   distance: number
   distanceToString: string
+  stepsCount?: number
 }
 
 interface IndexProps {
@@ -98,40 +110,136 @@ function Index({ travels, meta }: IndexProps) {
           </Button>
         </Group>
 
-        <DataTable
-          columns={[
-            {
-              key: 'date',
-              label: 'Date',
-              sortFn: (a: TravelRow, b: TravelRow) => a.date.localeCompare(b.date),
-            },
-            { key: 'distanceToString', label: 'Distance' },
-            {
-              key: 'actions',
-              label: '',
-              render: (row: TravelRow) => (
-                <TravelActionMenu
-                  onEdit={() => router.visit(`/travels/${row.id}/edit`)}
-                  onDelete={() => askDelete(row.id)}
-                />
-              ),
-              align: 'right',
-              width: 80,
-            },
-          ]}
-          data={items}
-          emptyMessage="Aucun trajet"
-        />
+        {/* Vue desktop : tableau */}
+        <Box visibleFrom="sm">
+          <DataTable<TravelRow>
+            columns={[
+              {
+                key: 'date',
+                label: 'DATE',
+                sortFn: (a, b) => a.date.localeCompare(b.date),
+                render: (row) => (
+                  <Text size="sm">{new Date(row.date).toLocaleDateString('fr-FR')}</Text>
+                ),
+              },
+              {
+                key: 'distanceToString',
+                label: 'DISTANCE',
+                render: (row) => (
+                  <Text size="sm" fw={500}>
+                    {row.distanceToString}
+                  </Text>
+                ),
+              },
+              {
+                key: 'steps',
+                label: 'ÉTAPES',
+                render: (row) => {
+                  const count = row.stepsCount ?? 0
+                  return (
+                    <Badge variant="light" color="ocean" radius="xl" size="sm">
+                      {count} étape{count > 1 ? 's' : ''}
+                    </Badge>
+                  )
+                },
+              },
+              {
+                key: 'actions',
+                label: '',
+                render: (row) => (
+                  <TravelActionMenu
+                    onEdit={() => router.visit(`/travels/${row.id}/edit`)}
+                    onDelete={() => askDelete(row.id)}
+                  />
+                ),
+                align: 'right',
+                width: 80,
+              },
+            ]}
+            data={items}
+            emptyMessage="Aucun trajet"
+          />
 
-        <Pagination
-          total={meta.lastPage}
-          value={page}
-          onChange={(p) => {
-            setPage(p)
-            gotoPage(p)
-          }}
-          mt="md"
-        />
+          <Pagination
+            total={meta.lastPage}
+            value={page}
+            onChange={(p) => {
+              setPage(p)
+              gotoPage(p)
+            }}
+            mt="md"
+          />
+        </Box>
+
+        {/* Vue mobile : cards */}
+        <Box hiddenFrom="sm">
+          <Stack gap="sm">
+            {items.length === 0 && (
+              <Text size="sm" c="dimmed">
+                Aucun trajet pour le moment.
+              </Text>
+            )}
+
+            {items.map((row) => {
+              const count = row.stepsCount ?? 0
+              return (
+                <Paper
+                  key={row.id}
+                  withBorder
+                  radius="lg"
+                  p="sm"
+                  style={{
+                    background: 'rgba(15,23,42,0.96)',
+                    borderColor: 'rgba(56,189,248,0.45)',
+                  }}
+                >
+                  <Stack gap={6}>
+                    <Group justify="space-between" align="flex-start" gap="xs">
+                      <Stack gap={2}>
+                        <Group gap={6} align="center">
+                          <Text size="sm" fw={600}>
+                            Trajet #{row.id}
+                          </Text>
+                          <Badge variant="outline" size="xs" radius="xl">
+                            {new Date(row.date).toLocaleDateString('fr-FR')}
+                          </Badge>
+                        </Group>
+
+                        <Group gap={6}>
+                          <Badge variant="light" color="ocean" radius="xl" size="xs">
+                            {row.distanceToString}
+                          </Badge>
+                          <Badge variant="outline" color="ocean" radius="xl" size="xs">
+                            {count} étape{count > 1 ? 's' : ''}
+                          </Badge>
+                        </Group>
+                      </Stack>
+
+                      <TravelActionMenu
+                        onEdit={() => router.visit(`/travels/${row.id}/edit`)}
+                        onDelete={() => askDelete(row.id)}
+                      />
+                    </Group>
+                  </Stack>
+                </Paper>
+              )
+            })}
+
+            {meta.lastPage > 1 && (
+              <Group justify="center" mt="sm">
+                <Pagination
+                  total={meta.lastPage}
+                  value={page}
+                  onChange={(p) => {
+                    setPage(p)
+                    gotoPage(p)
+                  }}
+                  size="sm"
+                />
+              </Group>
+            )}
+          </Stack>
+        </Box>
       </Container>
 
       <ConfirmDeleteModal

@@ -42,6 +42,19 @@ export function ConfirmDeleteModal({
       closeOnEscape={!loading}
       closeOnClickOutside={!loading}
       radius="lg"
+      styles={{
+        header: {
+          background: 'transparent',
+          borderBottom: 'none',
+          paddingBottom: 0,
+        },
+        title: {
+          fontWeight: 600,
+        },
+        close: {
+          color: 'var(--mantine-color-dimmed)',
+        },
+      }}
     >
       <Group align="start" mb="md" gap="sm" wrap="nowrap">
         {icon}
