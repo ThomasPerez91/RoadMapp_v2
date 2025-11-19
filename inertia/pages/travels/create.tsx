@@ -22,7 +22,7 @@ import { notifications } from '@mantine/notifications'
 import dayjs from 'dayjs'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { TbArrowDown, TbArrowUp, TbPlus, TbTrash, TbX } from 'react-icons/tb'
-import { LuMapPinHouse, LuMapPin, LuMapPinCheck } from 'react-icons/lu'
+import { LuMapPinHouse, LuMapPin, LuMapPinCheck, LuMapPinX } from 'react-icons/lu'
 import UserLayout from '~/layouts/user_layout'
 import {
   AddressBook,
@@ -74,6 +74,20 @@ function Create({ addresses }: Props) {
     () => new Set(segments.map(([a, b]) => segKey(a.id, b.id))),
     [segments]
   )
+
+  // 🔴 Indices d'étapes invalides (toId == fromId précédent)
+  // On marque l'index de la DEUXIÈME étape du doublon consécutif
+  const invalidIndices = useMemo(() => {
+    const indices = new Set<number>()
+    for (let i = 0; i < picks.length - 1; i++) {
+      if (picks[i].id === picks[i + 1].id) {
+        indices.add(i + 1)
+      }
+    }
+    return indices
+  }, [picks])
+
+  const hasInvalidSegments = invalidIndices.size > 0
 
   function addPick(address: Address, insertIndex?: number) {
     if (
@@ -198,7 +212,12 @@ function Create({ addresses }: Props) {
     [segKeysSet, metricsMap]
   )
 
-  const canSave = date && picks.length >= 2 && Array.from(segKeysSet).every((k) => !!metricsMap[k])
+  // 🔒 Bouton désactivé si segments invalides
+  const canSave =
+    !!date &&
+    picks.length >= 2 &&
+    !hasInvalidSegments &&
+    Array.from(segKeysSet).every((k) => !!metricsMap[k])
 
   async function save() {
     if (!date) return
@@ -366,7 +385,12 @@ function Create({ addresses }: Props) {
                   {picks.map((p, idx) => {
                     const isFirst = idx === 0
                     const isLast = idx === picks.length - 1
-                    const icon = isFirst ? (
+
+                    const isInvalidTo = invalidIndices.has(idx)
+
+                    const icon = isInvalidTo ? (
+                      <LuMapPinX size={20} />
+                    ) : isFirst ? (
                       <LuMapPinHouse size={20} />
                     ) : isLast ? (
                       <LuMapPinCheck size={20} />
@@ -398,7 +422,9 @@ function Create({ addresses }: Props) {
                                 p="xs"
                                 style={{
                                   background: 'rgba(15,23,42,.9)',
-                                  borderColor: 'rgba(56,189,248,.6)',
+                                  borderColor: isInvalidTo
+                                    ? 'var(--mantine-color-red-6)'
+                                    : 'rgba(56,189,248,.6)',
                                 }}
                               >
                                 <Group
@@ -418,7 +444,9 @@ function Create({ addresses }: Props) {
                                       justifyContent: 'center',
                                       background:
                                         'linear-gradient(135deg, rgba(56,189,248,.28), rgba(129,140,248,.32))',
-                                      border: '1px solid rgba(129,140,248,.8)',
+                                      border: isInvalidTo
+                                        ? '1px solid var(--mantine-color-red-6)'
+                                        : '1px solid rgba(129,140,248,.8)',
                                     }}
                                   >
                                     {icon}
@@ -526,9 +554,24 @@ function Create({ addresses }: Props) {
                                 {isLoading && <Loader size="xs" />}
                                 {!isLoading && metrics && (
                                   <>
-                                    <Text size="xs" fw={500}>
+                                    <Box
+                                      className="roadmapp-metric-dot"
+                                      style={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: '50%',
+                                        background: 'var(--mantine-color-ocean-4)',
+                                        boxShadow: `0 0 4px rgba(56,189,248,0.6),
+                                          0 0 8px rgba(56,189,248,0.3),
+                                          inset 0 0 4px rgba(255,255,255,0.15)
+                                          `,
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                    <Text size="xs" fw={500} style={{ color: '#e5e7eb' }}>
                                       {metrics.distanceToString}
                                     </Text>
+
                                     <Text size="xs" c="dimmed">
                                       • {metrics.durationToString}
                                     </Text>
@@ -548,6 +591,25 @@ function Create({ addresses }: Props) {
                   })}
                 </Stack>
               </Paper>
+
+              {/* 🔴 Message d'erreur si doublons consécutifs */}
+              {hasInvalidSegments && (
+                <Paper
+                  withBorder
+                  radius="lg"
+                  p="sm"
+                  mt="xs"
+                  style={{
+                    background: 'rgba(15,23,42,.9)', // fond bleu nuit comme le reste
+                    borderColor: 'var(--mantine-color-red-6)',
+                  }}
+                >
+                  <Text size="sm" c="red">
+                    Deux étapes consécutives pointent vers la même adresse. Corrigez l&apos;ordre ou
+                    supprimez une étape pour pouvoir enregistrer le trajet.
+                  </Text>
+                </Paper>
+              )}
 
               {/* Bas : bouton aligné à droite */}
               <Group justify="flex-end" mt="md">
