@@ -58,22 +58,27 @@ function buildLegBatch(travelId: number, legs: LegPayload[]): LegBatch {
   return batch
 }
 
-async function markAddressesAsUsed(addressIds: Iterable<number>, client?: TransactionClientContract) {
+async function markAddressesAsUsed(
+  addressIds: Iterable<number>,
+  client?: TransactionClientContract
+) {
   const ids = Array.from(new Set(addressIds))
   if (!ids.length) return
   const query = client ? Address.query({ client }) : Address.query()
   await query.whereIn('id', ids).andWhere('used', false).update({ used: true })
 }
 
-async function recomputeAddressesUsed(addressIds: Iterable<number>, client?: TransactionClientContract) {
+async function recomputeAddressesUsed(
+  addressIds: Iterable<number>,
+  client?: TransactionClientContract
+) {
   const ids = Array.from(new Set(addressIds))
   if (!ids.length) return
 
   const legQuery = client ? Leg.query({ client }) : Leg.query()
-  const legs = await legQuery
-    .where((builder) => {
-      builder.whereIn('start_id', ids).orWhereIn('end_id', ids)
-    })
+  const legs = await legQuery.where((builder) => {
+    builder.whereIn('start_id', ids).orWhereIn('end_id', ids)
+  })
 
   const idsSet = new Set(ids)
   const usedIds = new Set<number>()
@@ -101,11 +106,12 @@ export default class TravelsController {
 
     const pagination = await Travel.query()
       .where('user_id', user.id)
+      .withCount('legs', (q) => q.as('step_count'))
       .orderBy('date', 'desc')
       .paginate(page, perPage)
 
+    const items = pagination.all().map(travelToDto)
     const serialized = pagination.serialize()
-    const items = (serialized.data as Travel[]).map(travelToDto)
 
     return inertia.render('travels/index', {
       travels: items,
@@ -120,9 +126,7 @@ export default class TravelsController {
 
   async create({ inertia, auth }: HttpContext) {
     await auth.check()
-    const addresses = await Address.query()
-      .where('user_id', auth.user!.id)
-      .orderBy('name', 'asc')
+    const addresses = await Address.query().where('user_id', auth.user!.id).orderBy('name', 'asc')
     return inertia.render('travels/create', { addresses })
   }
 
@@ -136,9 +140,7 @@ export default class TravelsController {
       .first()
     if (!travel) return response.notFound()
 
-    const addresses = await Address.query()
-      .where('user_id', user.id)
-      .orderBy('name', 'asc')
+    const addresses = await Address.query().where('user_id', user.id).orderBy('name', 'asc')
 
     const picksIds: number[] = []
     if (travel.legs.length > 0) {
@@ -163,16 +165,22 @@ export default class TravelsController {
 
     const trx = await db.transaction()
     try {
-      const travel = await Travel.create({
-        userId: user.id,
-        date: new Date(payload.date),
-        distance: 0,
-        distanceToString: '0 km',
-      }, { client: trx })
+      const travel = await Travel.create(
+        {
+          userId: user.id,
+          date: new Date(payload.date),
+          distance: 0,
+          distanceToString: '0 km',
+        },
+        { client: trx }
+      )
 
       travel.useTransaction(trx)
 
-      const { records, totalDistance, addressIds } = buildLegBatch(travel.id, payload.legs as LegPayload[])
+      const { records, totalDistance, addressIds } = buildLegBatch(
+        travel.id,
+        payload.legs as LegPayload[]
+      )
 
       if (records.length) {
         await Leg.createMany(records, { client: trx })
@@ -211,8 +219,7 @@ export default class TravelsController {
 
       travel.useTransaction(trx)
 
-      const oldLegs = await Leg.query({ client: trx })
-        .where('travel_id', travel.id)
+      const oldLegs = await Leg.query({ client: trx }).where('travel_id', travel.id)
 
       const oldAddressIds = new Set<number>()
       for (const l of oldLegs) {
@@ -229,7 +236,10 @@ export default class TravelsController {
       if (payload.legs?.length) {
         await Leg.query({ client: trx }).where('travel_id', travel.id).delete()
 
-        const { records, totalDistance, addressIds } = buildLegBatch(travel.id, payload.legs as LegPayload[])
+        const { records, totalDistance, addressIds } = buildLegBatch(
+          travel.id,
+          payload.legs as LegPayload[]
+        )
 
         if (records.length) {
           await Leg.createMany(records, { client: trx })

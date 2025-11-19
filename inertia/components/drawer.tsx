@@ -1,53 +1,42 @@
-import {
-  Drawer,
-  Flex,
-  Group,
-  Title,
-  useMantineTheme,
-  rem,
-} from '@mantine/core';
-import { useDisclosure, useMediaQuery } from '@mantine/hooks';
-import {
-  createContext,
-  useContext,
-  useState,
-  type ReactNode,
-  type FC,
-  useCallback,
-} from 'react';
+import { Drawer, Flex, Group, Title, useMantineTheme, rem } from '@mantine/core'
+import { useDisclosure, useMediaQuery } from '@mantine/hooks'
+import { createContext, useContext, useState, type ReactNode, type FC, useCallback } from 'react'
 
 type DrawerOptions = {
-  title: string;
-  content: ReactNode;
-};
+  title: string
+  content: ReactNode
+}
 
 type AppDrawerContextType = {
-  open: (options: DrawerOptions) => void;
-  close: () => void;
-};
+  open: (options: DrawerOptions) => void
+  close: () => void
+}
 
-const AppDrawerContext = createContext<AppDrawerContextType | null>(null);
+const AppDrawerContext = createContext<AppDrawerContextType | null>(null)
 
 export function useAppDrawer() {
-  const context = useContext(AppDrawerContext);
-  if (!context) throw new Error('useAppDrawer must be used within AppDrawerProvider');
-  return context;
+  const context = useContext(AppDrawerContext)
+  if (!context) throw new Error('useAppDrawer must be used within AppDrawerProvider')
+  return context
 }
 
 export const AppDrawerProvider: FC<{ children: ReactNode }> = ({ children }) => {
-  const theme = useMantineTheme();
-  const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`, false);
+  const theme = useMantineTheme()
+  const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`, false)
 
-  const [opened, { open: openDrawer, close }] = useDisclosure(false);
-  const [options, setOptions] = useState<DrawerOptions>({ title: '', content: null });
+  const [opened, { open: openDrawer, close }] = useDisclosure(false)
+  const [options, setOptions] = useState<DrawerOptions>({ title: '', content: null })
 
-  const handleOpen = useCallback((opts: DrawerOptions) => {
-    setOptions(opts);
-    openDrawer();
-  }, [openDrawer]);
+  const handleOpen = useCallback(
+    (opts: DrawerOptions) => {
+      setOptions(opts)
+      openDrawer()
+    },
+    [openDrawer]
+  )
 
-  const position = isMobile ? 'bottom' : 'right';
-  const size = isMobile ? '100%' : 480; // desktop : largeur fixe
+  const position = isMobile ? 'bottom' : 'right'
+  const size = isMobile ? '100%' : 480 // desktop : largeur fixe
 
   return (
     <AppDrawerContext.Provider value={{ open: handleOpen, close }}>
@@ -114,5 +103,5 @@ export const AppDrawerProvider: FC<{ children: ReactNode }> = ({ children }) => 
         </Drawer.Content>
       </Drawer.Root>
     </AppDrawerContext.Provider>
-  );
-};
+  )
+}

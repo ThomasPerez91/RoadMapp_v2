@@ -61,7 +61,8 @@ export function TravelStepsColumn({
             <Title order={3}>Étapes du trajet</Title>
             {/* Petit texte d’aide uniquement visible sur mobile */}
             <Text size="xs" c="dimmed" hiddenFrom="md">
-              Ajoutez vos adresses une par une, puis réordonnez ou insérez des étapes intermédiaires.
+              Ajoutez vos adresses une par une, puis réordonnez ou insérez des étapes
+              intermédiaires.
             </Text>
           </Box>
 
@@ -371,20 +372,19 @@ export function TravelStepsColumn({
               Enregistrer
             </Button>
           </Group>
-
-          {/* Bouton d’enregistrement principal (desktop) */}
-          <Group justify="flex-end" mt="md" visibleFrom="sm">
-            <Button
-              radius="xl"
-              variant="gradient"
-              gradient={{ from: 'ocean', to: 'plum', deg: 60 }}
-              disabled={!canSave}
-              onClick={onSave}
-            >
-              Enregistrer le trajet
-            </Button>
-          </Group>
         </Paper>
+        {/* Bouton d’enregistrement principal (desktop) */}
+        <Group justify="flex-end" mt="md" visibleFrom="sm">
+          <Button
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: 'ocean', to: 'plum', deg: 60 }}
+            disabled={!canSave}
+            onClick={onSave}
+          >
+            Enregistrer le trajet
+          </Button>
+        </Group>
       </Stack>
     </Grid.Col>
   )

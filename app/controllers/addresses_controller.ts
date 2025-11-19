@@ -66,10 +66,6 @@ export default class AddressesController {
     }
   }
 
-  /**
-   * Update (API JSON)
-   * - si address.used === true : seul le name peut changer
-   */
   async update({ params, request, auth, response }: HttpContext) {
     await auth.check()
     const user = auth.user!
@@ -82,7 +78,6 @@ export default class AddressesController {
 
       const payload = await request.validateUsing(updateAddressValidator)
 
-      // On prépare l'objet final qu'on veut appliquer
       const nextValues = {
         name: payload.name,
         address: payload.address,

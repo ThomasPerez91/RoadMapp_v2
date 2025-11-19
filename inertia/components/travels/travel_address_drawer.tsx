@@ -12,14 +12,6 @@ export interface TravelAddressDrawerProps {
   onAddAddress: (address: Address) => void
 }
 
-/**
- * Drawer mobile pour la sélection d’adresse.
- *
- * - S’ouvre depuis le bas de l’écran
- * - Prend ~70% de la hauteur pour garder le contexte visible
- * - Header collé en haut avec titre + bouton fermer
- * - Carnet scrollable en dessous
- */
 export function TravelAddressDrawer({
   opened,
   onClose,
@@ -32,7 +24,7 @@ export function TravelAddressDrawer({
       opened={opened}
       onClose={onClose}
       position="bottom"
-      size="70%" // hauteur proportionnelle, fonctionne sur tous les mobiles
+      size="70%"
       radius="xl"
       padding="md"
       withinPortal
@@ -45,6 +37,13 @@ export function TravelAddressDrawer({
           flexDirection: 'column',
           paddingTop: 'var(--mantine-spacing-sm)',
         },
+        header: {
+          display: 'none',
+          background: 'transparent',
+          borderBottom: 'none',
+          padding: 0,
+          margin: 0,
+        },
         body: {
           padding: 0,
         },
@@ -56,11 +55,7 @@ export function TravelAddressDrawer({
           <Text fw={600} size="sm">
             Ajouter une adresse
           </Text>
-          <ActionIcon
-            variant="subtle"
-            aria-label="Fermer le carnet d’adresses"
-            onClick={onClose}
-          >
+          <ActionIcon variant="subtle" aria-label="Fermer le carnet d’adresses" onClick={onClose}>
             <TbX size={18} />
           </ActionIcon>
         </Group>

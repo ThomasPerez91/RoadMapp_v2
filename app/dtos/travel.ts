@@ -5,6 +5,7 @@ export interface TravelDto {
   date: string
   distance: number
   distanceToString: string
+  stepsCount: number
 }
 
 export function travelToDto(travel: Travel): TravelDto {
@@ -13,5 +14,6 @@ export function travelToDto(travel: Travel): TravelDto {
     date: travel.date.toISOString().split('T')[0],
     distance: travel.distance,
     distanceToString: travel.distanceToString,
+    stepsCount: travel.$extras.step_count ?? 0,
   }
 }
