@@ -192,7 +192,7 @@ export function AddressBook({
                 'margin': '10px 0',
                 'padding': '6px 10px',
                 'cursor': 'pointer',
-                '&[data-hovered]': {
+                '&[dataHovered]': {
                   backgroundColor: 'rgba(56,189,248,.18)',
                 },
               },
