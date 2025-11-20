@@ -1,6 +1,5 @@
 import { Head, router } from '@inertiajs/react'
 import {
-  Breadcrumbs,
   Container,
   Pagination,
   TextInput,
@@ -10,7 +9,6 @@ import {
   Group,
   Paper,
   Stack,
-  Text,
   Title,
   useMantineTheme,
   rem,
@@ -30,6 +28,7 @@ import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal'
 import { deleteAddress, searchAddresses, toggleAddressActive } from '~/services/addresses'
 import { PageInfoButton } from '~/components/page_info'
 import { BackButton } from '~/components/generics/back_buttons'
+import { ClickableBreadcrumbs } from '~/components/generics/clickable_breadcrumbs'
 
 interface IndexProps {
   addresses: Address[]
@@ -179,141 +178,141 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
         <Stack gap="md">
           <Group gap="xs" align="center">
             <BackButton href="/dashboard" />
-            <Breadcrumbs>
-              <Text size="sm" c="dimmed">
-                Tableau de bord
-              </Text>
-              <Text size="sm">Carnet d'adresses</Text>
-            </Breadcrumbs>
+            <ClickableBreadcrumbs
+              items={[
+                { label: 'Tableau de bord', href: '/dashboard' },
+                { label: 'Carnet d’adresses' },
+              ]}
+            />
           </Group>
-        <Group justify="space-between" mb="sm" wrap="wrap" align="center">
-          <Group gap="xs" align="center">
-            <Title order={3}>{title}</Title>
-            <PageInfoButton page="addresses" ariaLabel="Afficher l’aide du carnet d’adresses" />
-          </Group>
-          <Group gap="md">
-            <Button
-              variant="light"
-              radius="xl"
-              onClick={toggleStatus}
-              leftSection={<TbArchive size={16} />}
-            >
-              {status === 'active' ? 'Voir archivées' : 'Voir actives'}
-            </Button>
-
-            {status === 'active' && (
+          <Group justify="space-between" mb="sm" wrap="wrap" align="center">
+            <Group gap="xs" align="center">
+              <Title order={3}>{title}</Title>
+              <PageInfoButton page="addresses" ariaLabel="Afficher l’aide du carnet d’adresses" />
+            </Group>
+            <Group gap="md">
               <Button
+                variant="light"
                 radius="xl"
-                variant="gradient"
-                gradient={{ from: 'ocean', to: 'plum', deg: 60 }}
-                onClick={openCreate}
-                leftSection={<TbMapPin size={16} />}
+                onClick={toggleStatus}
+                leftSection={<TbArchive size={16} />}
               >
-                Ajouter une adresse
+                {status === 'active' ? 'Voir archivées' : 'Voir actives'}
               </Button>
-            )}
+
+              {status === 'active' && (
+                <Button
+                  radius="xl"
+                  variant="gradient"
+                  gradient={{ from: 'ocean', to: 'plum', deg: 60 }}
+                  onClick={openCreate}
+                  leftSection={<TbMapPin size={16} />}
+                >
+                  Ajouter une adresse
+                </Button>
+              )}
+            </Group>
           </Group>
-        </Group>
 
-        <Box pos="relative" mb="md">
-          <TextInput
-            placeholder={status === 'active' ? 'Recherche (actives)…' : 'Recherche (archivées)…'}
-            value={query}
-            onChange={(e) => setQuery(e.currentTarget.value)}
-            radius="md"
-          />
-        </Box>
+          <Box pos="relative" mb="md">
+            <TextInput
+              placeholder={status === 'active' ? 'Recherche (actives)…' : 'Recherche (archivées)…'}
+              value={query}
+              onChange={(e) => setQuery(e.currentTarget.value)}
+              radius="md"
+            />
+          </Box>
 
-        {isMobile ? (
-          <Stack gap="sm">
-            {displayItems.map((row) => (
-              <Paper
-                key={row.id}
-                p="md"
-                radius="lg"
-                withBorder
-                style={{
-                  background: 'rgba(7,14,24,.60)',
-                  border: '1px solid rgba(255,255,255,.06)',
-                  backdropFilter: 'blur(6px)',
-                }}
-              >
-                <Group justify="space-between" align="flex-start">
-                  <div>
-                    <Title order={5} style={{ marginBottom: rem(4) }}>
-                      {row.name}
-                    </Title>
-                    <div style={{ opacity: 0.9 }}>
-                      {row.address}
-                      <br />
-                      {row.postalCode} {row.city}
+          {isMobile ? (
+            <Stack gap="sm">
+              {displayItems.map((row) => (
+                <Paper
+                  key={row.id}
+                  p="md"
+                  radius="lg"
+                  withBorder
+                  style={{
+                    background: 'rgba(7,14,24,.60)',
+                    border: '1px solid rgba(255,255,255,.06)',
+                    backdropFilter: 'blur(6px)',
+                  }}
+                >
+                  <Group justify="space-between" align="flex-start">
+                    <div>
+                      <Title order={5} style={{ marginBottom: rem(4) }}>
+                        {row.name}
+                      </Title>
+                      <div style={{ opacity: 0.9 }}>
+                        {row.address}
+                        <br />
+                        {row.postalCode} {row.city}
+                      </div>
+                      <Group gap="xs" mt="xs">
+                        <Badge color={row.isActive ? 'ocean' : 'red'} variant="filled">
+                          {row.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                        <Badge color={row.checked ? 'ocean' : 'red'} variant="light">
+                          {row.checked ? 'Checked' : 'Failed'}
+                        </Badge>
+                      </Group>
                     </div>
-                    <Group gap="xs" mt="xs">
-                      <Badge color={row.isActive ? 'ocean' : 'red'} variant="filled">
-                        {row.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                      <Badge color={row.checked ? 'ocean' : 'red'} variant="light">
-                        {row.checked ? 'Checked' : 'Failed'}
-                      </Badge>
-                    </Group>
-                  </div>
-                  <AddressActionMenu
-                    address={row}
-                    onEdit={openUpdate}
-                    onToggleActive={toggleActive}
-                    onDelete={(addr) => askDelete(addr.id)}
-                    iconSize={18}
-                  />
-                </Group>
-              </Paper>
-            ))}
-          </Stack>
-        ) : (
-          <DataTable<Address>
-            columns={[
-              { key: 'name', label: 'NOM', sortFn: (a, b) => a.name.localeCompare(b.name) },
-              { key: 'address', label: 'ADRESSE' },
-              { key: 'postalCode', label: 'CODE POSTAL' },
-              { key: 'city', label: 'VILLE', sortFn: (a, b) => a.city.localeCompare(b.city) },
-              {
-                key: 'isActive',
-                label: 'STATUT',
-                render: (row) => (
-                  <Badge color={row.isActive ? 'ocean' : 'red'} variant="filled">
-                    {row.isActive ? 'ACTIVE' : 'INACTIVE'}
-                  </Badge>
-                ),
-              },
-              {
-                key: 'actions',
-                label: '',
-                render: (row) => (
-                  <AddressActionMenu
-                    address={row}
-                    onEdit={openUpdate}
-                    onToggleActive={toggleActive}
-                    onDelete={(addr) => askDelete(addr.id)}
-                    menuProps={{ position: 'bottom-end', offset: 4 }}
-                  />
-                ),
-              },
-            ]}
-            data={displayItems}
-          />
-        )}
+                    <AddressActionMenu
+                      address={row}
+                      onEdit={openUpdate}
+                      onToggleActive={toggleActive}
+                      onDelete={(addr) => askDelete(addr.id)}
+                      iconSize={18}
+                    />
+                  </Group>
+                </Paper>
+              ))}
+            </Stack>
+          ) : (
+            <DataTable<Address>
+              columns={[
+                { key: 'name', label: 'NOM', sortFn: (a, b) => a.name.localeCompare(b.name) },
+                { key: 'address', label: 'ADRESSE' },
+                { key: 'postalCode', label: 'CODE POSTAL' },
+                { key: 'city', label: 'VILLE', sortFn: (a, b) => a.city.localeCompare(b.city) },
+                {
+                  key: 'isActive',
+                  label: 'STATUT',
+                  render: (row) => (
+                    <Badge color={row.isActive ? 'ocean' : 'red'} variant="filled">
+                      {row.isActive ? 'ACTIVE' : 'INACTIVE'}
+                    </Badge>
+                  ),
+                },
+                {
+                  key: 'actions',
+                  label: '',
+                  render: (row) => (
+                    <AddressActionMenu
+                      address={row}
+                      onEdit={openUpdate}
+                      onToggleActive={toggleActive}
+                      onDelete={(addr) => askDelete(addr.id)}
+                      menuProps={{ position: 'bottom-end', offset: 4 }}
+                    />
+                  ),
+                },
+              ]}
+              data={displayItems}
+            />
+          )}
 
-        <Divider my="md" />
-        {!hasSearch && (
-          <Pagination
-            total={meta.lastPage}
-            value={page}
-            onChange={(p) => {
-              setPage(p)
-              goto(p, status)
-            }}
-            mt="xs"
-          />
-        )}
+          <Divider my="md" />
+          {!hasSearch && (
+            <Pagination
+              total={meta.lastPage}
+              value={page}
+              onChange={(p) => {
+                setPage(p)
+                goto(p, status)
+              }}
+              mt="xs"
+            />
+          )}
         </Stack>
       </Container>
 
