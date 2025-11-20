@@ -1,6 +1,6 @@
 // inertia/pages/travels/create.tsx
 import { Head, router } from '@inertiajs/react'
-import { Container, Grid } from '@mantine/core'
+import { Breadcrumbs, Container, Grid, Group, Stack, Text } from '@mantine/core'
 import dayjs from 'dayjs'
 import UserLayout from '~/layouts/user_layout'
 import type { AddressBookAddress as Address } from '~/components/addresses/address_book'
@@ -11,6 +11,7 @@ import { TravelStepsColumn } from '~/components/travels/travel_steps_panel'
 import { TravelInsertModal } from '~/components/travels/travel_insert_modal'
 import { TravelAddressDrawer } from '~/components/travels/travel_address_drawer'
 import { useState } from 'react'
+import { BackButton } from '~/components/generics/back_buttons'
 
 type Props = { addresses: Address[] }
 
@@ -42,6 +43,19 @@ function Create({ addresses }: Props) {
     <>
       <Head title="Créer un trajet" />
       <Container py="lg">
+        <Stack gap="md">
+          <Group gap="xs" align="center">
+            <BackButton href="/travels" />
+            <Breadcrumbs>
+              <Text size="sm" c="dimmed">
+                Tableau de bord
+              </Text>
+              <Text size="sm" c="dimmed">
+                Trajets
+              </Text>
+              <Text size="sm">Créer</Text>
+            </Breadcrumbs>
+          </Group>
         <Grid gutter="lg">
           <Grid.Col span={{ base: 12, md: 4 }}>
             <TravelDateAndAddressBook
@@ -70,6 +84,7 @@ function Create({ addresses }: Props) {
             onOpenAddressDrawer={() => setAddressDrawerOpened(true)}
           />
         </Grid>
+        </Stack>
       </Container>
 
       <TravelInsertModal

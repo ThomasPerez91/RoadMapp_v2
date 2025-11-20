@@ -6,10 +6,11 @@ const AddressesController = () => import('#controllers/addresses_controller')
 const TravelsController = () => import('#controllers/travels_controller')
 const UsersController = () => import('#controllers/users_controller')
 const MetricsController = () => import('#controllers/metrics_controller')
+const DashboardController = () => import('#controllers/dashboard_controller')
+
 
 router.on('/').renderInertia('home')
 
-router.on('/dashboard').renderInertia('users/dashboard').middleware([middleware.auth()])
 router.get('/settings', [UsersController, 'settings']).middleware([middleware.auth()])
 
 router
@@ -33,7 +34,7 @@ router
 
     router.post('/travels', [TravelsController, 'store'])
     router.put('/travels/:id', [TravelsController, 'update'])
-    router.delete('/travels/:id', [TravelsController, 'destroy']) // suppression + recompute "used"
+    router.delete('/travels/:id', [TravelsController, 'destroy'])
   })
   .prefix('/api')
   .middleware([middleware.auth()])
@@ -41,3 +42,6 @@ router
 router.get('/travels', [TravelsController, 'index']).middleware([middleware.auth()])
 router.get('/travels/create', [TravelsController, 'create']).middleware([middleware.auth()])
 router.get('/travels/:id/edit', [TravelsController, 'edit']).middleware([middleware.auth()])
+
+router.get('/dashboard', [DashboardController, 'index']).middleware([middleware.auth()])
+

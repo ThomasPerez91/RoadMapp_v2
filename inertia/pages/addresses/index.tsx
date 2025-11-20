@@ -1,5 +1,6 @@
 import { Head, router } from '@inertiajs/react'
 import {
+  Breadcrumbs,
   Container,
   Pagination,
   TextInput,
@@ -9,6 +10,7 @@ import {
   Group,
   Paper,
   Stack,
+  Text,
   Title,
   useMantineTheme,
   rem,
@@ -27,6 +29,7 @@ import { FlashMessages } from '~/components/flash_messages'
 import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal'
 import { deleteAddress, searchAddresses, toggleAddressActive } from '~/services/addresses'
 import { PageInfoButton } from '~/components/page_info'
+import { BackButton } from '~/components/generics/back_buttons'
 
 interface IndexProps {
   addresses: Address[]
@@ -173,6 +176,16 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
       <Head title="Carnet d'adresses" />
       <FlashMessages flash={flash} />
       <Container size="lg">
+        <Stack gap="md">
+          <Group gap="xs" align="center">
+            <BackButton href="/dashboard" />
+            <Breadcrumbs>
+              <Text size="sm" c="dimmed">
+                Tableau de bord
+              </Text>
+              <Text size="sm">Carnet d'adresses</Text>
+            </Breadcrumbs>
+          </Group>
         <Group justify="space-between" mb="sm" wrap="wrap" align="center">
           <Group gap="xs" align="center">
             <Title order={3}>{title}</Title>
@@ -301,6 +314,7 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
             mt="xs"
           />
         )}
+        </Stack>
       </Container>
 
       <ConfirmDeleteModal
