@@ -3,7 +3,6 @@ import { Head, router } from '@inertiajs/react'
 import {
   Badge,
   Box,
-  Breadcrumbs,
   Button,
   Container,
   Group,
@@ -24,7 +23,7 @@ import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal'
 import { FlashMessages } from '~/components/flash_messages'
 import { jsonFetch } from '~/services/http'
 import { BackButton } from '~/components/generics/back_buttons'
-
+import { ClickableBreadcrumbs } from '~/components/generics/clickable_breadcrumbs'
 
 type TravelRow = {
   id: number
@@ -96,11 +95,9 @@ function Index({ travels, meta }: IndexProps) {
       <FlashMessages flash={flash} />
       <Container py="lg">
         <BackButton href="/dashboard" />
-        <Breadcrumbs>
-          <Text size="sm" c="dimmed">
-            Tableau de bord
-          </Text>
-        <Text size="sm">Trajets</Text></Breadcrumbs>
+        <ClickableBreadcrumbs
+          items={[{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Trajets' }]}
+        />
         <Group justify="space-between" mb="md" align="center">
           <Group gap="xs" align="center">
             <Title order={2}>Trajets</Title>
