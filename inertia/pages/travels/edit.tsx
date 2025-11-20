@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react'
-import { Breadcrumbs, Container, Grid, Group, Stack, Text } from '@mantine/core'
+import { Container, Grid, Group, Stack } from '@mantine/core'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import UserLayout from '~/layouts/user_layout'
@@ -12,6 +12,7 @@ import { TravelInsertModal } from '~/components/travels/travel_insert_modal'
 import { TravelAddressDrawer } from '~/components/travels/travel_address_drawer'
 import { jsonFetch } from '~/services/http'
 import { BackButton } from '~/components/generics/back_buttons'
+import { ClickableBreadcrumbs } from '~/components/generics/clickable_breadcrumbs'
 
 type Props = {
   travel: { id: number; date: string }
@@ -75,44 +76,42 @@ function Edit({ travel, picksIds, addresses }: Props) {
         <Stack gap="md">
           <Group gap="xs" align="center">
             <BackButton href="/travels" />
-            <Breadcrumbs>
-              <Text size="sm" c="dimmed">
-                Tableau de bord
-              </Text>
-              <Text size="sm" c="dimmed">
-                Trajets
-              </Text>
-              <Text size="sm">Modifier</Text>
-            </Breadcrumbs>
-          </Group>
-        <Grid gutter="md">
-          <Grid.Col span={{ base: 12, md: 4 }}>
-            <TravelDateAndAddressBook
-              date={planner.date}
-              onDateChange={planner.setDate}
-              addresses={planner.addresses}
-              homeAddress={planner.homeAddress}
-              onAddAddress={planner.addPick}
+            <ClickableBreadcrumbs
+              items={[
+                { label: 'Tableau de bord', href: '/dashboard' },
+                { label: 'Trajets', href: '/travels' },
+                { label: 'Modifier' },
+              ]}
             />
-          </Grid.Col>
+          </Group>
+          <Grid gutter="md">
+            <Grid.Col span={{ base: 12, md: 4 }}>
+              <TravelDateAndAddressBook
+                date={planner.date}
+                onDateChange={planner.setDate}
+                addresses={planner.addresses}
+                homeAddress={planner.homeAddress}
+                onAddAddress={planner.addPick}
+              />
+            </Grid.Col>
 
-          <TravelStepsColumn
-            picks={planner.picks}
-            addressesById={planner.allAddressesById}
-            metricsMap={planner.metricsMap}
-            resolving={planner.resolving}
-            invalidIndices={planner.invalidIndices}
-            totalDistance={planner.totalDistance}
-            canSave={planner.canSave}
-            hasInvalidSegments={planner.hasInvalidSegments}
-            onSave={planner.save}
-            onMoveUp={planner.movePickUp}
-            onMoveDown={planner.movePickDown}
-            onRemove={askDelete}
-            onInsertAfter={planner.openInsertAfter}
-            onOpenAddressDrawer={() => setAddressDrawerOpened(true)}
-          />
-        </Grid>
+            <TravelStepsColumn
+              picks={planner.picks}
+              addressesById={planner.allAddressesById}
+              metricsMap={planner.metricsMap}
+              resolving={planner.resolving}
+              invalidIndices={planner.invalidIndices}
+              totalDistance={planner.totalDistance}
+              canSave={planner.canSave}
+              hasInvalidSegments={planner.hasInvalidSegments}
+              onSave={planner.save}
+              onMoveUp={planner.movePickUp}
+              onMoveDown={planner.movePickDown}
+              onRemove={askDelete}
+              onInsertAfter={planner.openInsertAfter}
+              onOpenAddressDrawer={() => setAddressDrawerOpened(true)}
+            />
+          </Grid>
         </Stack>
       </Container>
 

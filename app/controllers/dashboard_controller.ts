@@ -155,10 +155,7 @@ function buildChartData(travels: Travel[], now: DateTime): DashboardChartData {
  * Récupère les X derniers trajets d'un utilisateur (avec les adresses de départ/arrivée)
  * pour alimenter la timeline du dashboard.
  */
-async function buildRecentTravels(
-  userId: number,
-  limit = 10
-): Promise<DashboardTravelItem[]> {
+async function buildRecentTravels(userId: number, limit = 10): Promise<DashboardTravelItem[]> {
   const travels = await Travel.query()
     .where('user_id', userId)
     .orderBy('date', 'desc')
@@ -173,9 +170,7 @@ async function buildRecentTravels(
     const firstLeg = travel.legs[0]
     const lastLeg = travel.legs[travel.legs.length - 1] ?? firstLeg
 
-    const fromLabel = firstLeg?.startAddress
-      ? buildShortAddress(firstLeg.startAddress)
-      : 'Départ'
+    const fromLabel = firstLeg?.startAddress ? buildShortAddress(firstLeg.startAddress) : 'Départ'
 
     const toLabel = lastLeg?.endAddress ? buildShortAddress(lastLeg.endAddress) : 'Arrivée'
 
@@ -198,23 +193,20 @@ async function buildRecentTravels(
  * Construit un libellé court pour une adresse (nom + ville / CP).
  */
 function buildShortAddress(a: Address): string {
-  const parts: string[] = []
-
-  if (a.name) {
-    parts.push(a.name)
+  // priorité au nom que tu as défini dans le carnet d'adresses
+  if (a.name && a.name.trim().length > 0) {
+    return a.name
   }
 
-  const locationParts: string[] = []
-  if ((a as any).postalCode) locationParts.push((a as any).postalCode)
-  if ((a as any).city) locationParts.push((a as any).city)
-
-  if (locationParts.length) {
-    parts.push(locationParts.join(' '))
+  // si pas de nom, on peut fallback sur la ville
+  if ((a as any).city && (a as any).city.trim().length > 0) {
+    return (a as any).city
   }
 
-  if (parts.length === 0 && a.address) {
-    parts.push(a.address)
+  // en dernier recours : la ligne d'adresse brute
+  if (a.address && a.address.trim().length > 0) {
+    return a.address
   }
 
-  return parts.join(' · ')
+  return 'Adresse'
 }

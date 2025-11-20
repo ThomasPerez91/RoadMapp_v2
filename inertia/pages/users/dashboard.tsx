@@ -1,14 +1,12 @@
-import { Head, router } from '@inertiajs/react'
+import { Head } from '@inertiajs/react'
 import {
   Badge,
   Box,
-  Button,
   Container,
   Grid,
   Group,
   Paper,
   SegmentedControl,
-  SimpleGrid,
   Stack,
   Text,
   Title,
@@ -17,15 +15,10 @@ import {
 import { DatePickerInput } from '@mantine/dates'
 import { BarChart } from '@mantine/charts'
 import { useState } from 'react'
-import {
-  TbArrowRight,
-  TbCalendarTime,
-  TbMapPin,
-  TbMapPin2,
-  TbRoute,
-  TbTimeline,
-} from 'react-icons/tb'
+import { TbArrowRight, TbCalendarTime, TbMapPin2, TbRoute, TbTimeline } from 'react-icons/tb'
+import { LuMapPin } from 'react-icons/lu'
 import UserLayout from '~/layouts/user_layout'
+import authUser from '~/hooks/auth'
 
 type DashboardPeriod = 'week' | 'month' | 'year' | 'custom'
 
@@ -61,29 +54,17 @@ interface DashboardProps {
   summary: DashboardSummary
   chart: DashboardChartData
   recentTravels: DashboardTravelItem[]
+  userName: string
 }
 
-// -----------------------------------------------------------------------------
-// Composant principal
-// -----------------------------------------------------------------------------
-
 function Dashboard({ summary, chart, recentTravels }: DashboardProps) {
+  const user = authUser()
   const [period, setPeriod] = useState<DashboardPeriod>('month')
   const [range, setRange] = useState<[Date | null, Date | null]>([null, null])
 
-  // Pour l’instant, le "custom" reuse les données "month"
-  const effectivePeriod: Exclude<DashboardPeriod, 'custom'> =
-    period === 'custom' ? 'month' : period
+  const effectivePeriod: Exclude<DashboardPeriod, 'custom'> = period === 'custom' ? 'month' : period
 
   const chartData = chart[effectivePeriod] ?? []
-
-  const handleCreateTravel = () => {
-    router.visit('/travels/create')
-  }
-
-  const handleGoToAddresses = () => {
-    router.visit('/addresses')
-  }
 
   return (
     <>
@@ -91,37 +72,17 @@ function Dashboard({ summary, chart, recentTravels }: DashboardProps) {
 
       <Container size="lg" py="md">
         <Stack gap="lg">
-          {/* Header */}
+          {/* Header + bandeau fin de stats */}
           <Group justify="space-between" align="flex-start">
-            <div>
+            <Stack gap={4}>
+              <Title order={2}>Bonjour, {user.user?.name}</Title>
               <Text size="sm" c="dimmed">
-                Tableau de bord
-              </Text>
-              <Title order={2} mt={4}>
-                Bonjour 👋
-              </Title>
-              <Text size="sm" c="dimmed" mt={4}>
                 Vue d’ensemble de vos trajets, distances et adresses.
               </Text>
-            </div>
+            </Stack>
 
-            <Group gap="xs">
-              <Button
-                variant="light"
-                leftSection={<TbMapPin size={16} />}
-                onClick={handleGoToAddresses}
-              >
-                Carnet d’adresses
-              </Button>
-
-              <Button leftSection={<TbRoute size={18} />} onClick={handleCreateTravel}>
-                Créer un trajet
-              </Button>
-            </Group>
+            <DashboardHeaderStats summary={summary} />
           </Group>
-
-          {/* Stats rapides */}
-          <DashboardStatsStrip summary={summary} />
 
           {/* Timeline & Graph */}
           <Grid gutter="lg">
@@ -151,105 +112,99 @@ Dashboard.layout = (page: any) => <UserLayout>{page}</UserLayout>
 export default Dashboard
 
 // -----------------------------------------------------------------------------
-// Sous-composants : bandeau de stats
+// Bandeau de stats mince dans le header (élargi + icônes)
 // -----------------------------------------------------------------------------
 
-interface DashboardStatsStripProps {
+interface DashboardHeaderStatsProps {
   summary: DashboardSummary
 }
 
 /**
- * Bandeau de 3 cartes de stats : km/mois, trajets/mois, km/année
+ * Bandeau compact : 3 mini stats avec label + valeur + petite icône.
  */
-function DashboardStatsStrip({ summary }: DashboardStatsStripProps) {
+function DashboardHeaderStats({ summary }: DashboardHeaderStatsProps) {
   const averageDistance =
     summary.travelsThisMonth > 0
       ? Math.round((summary.distanceThisMonthKm / summary.travelsThisMonth) * 10) / 10
       : 0
 
   return (
-    <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
-      <StatCard
-        label="Distance ce mois-ci"
-        value={`${summary.distanceThisMonthKm.toLocaleString('fr-FR')} km`}
-        hint="Total des trajets sur le mois en cours"
-        icon={<TbTimeline size={18} />}
-      />
-
-      <StatCard
-        label="Trajets ce mois-ci"
-        value={summary.travelsThisMonth.toString()}
-        hint={
-          averageDistance > 0
-            ? `Moyenne de ${averageDistance} km par trajet`
-            : 'Aucun trajet sur ce mois'
-        }
-        icon={<TbRoute size={18} />}
-      />
-
-      <StatCard
-        label="Distance cette année"
-        value={`${summary.distanceThisYearKm.toLocaleString('fr-FR')} km`}
-        hint="Depuis le 1er janvier"
-        icon={<TbCalendarTime size={18} />}
-      />
-    </SimpleGrid>
-  )
-}
-
-interface StatCardProps {
-  label: string
-  value: string
-  hint?: string
-  icon?: React.ReactNode
-}
-
-function StatCard({ label, value, hint, icon }: StatCardProps) {
-  return (
     <Paper
       withBorder
-      radius="lg"
-      shadow="sm"
-      p="md"
+      radius="xl"
+      p="sm"
       style={{
-        position: 'relative',
-        overflow: 'hidden',
+        minWidth: 460,
+        maxWidth: '100%',
       }}
     >
-      <Group justify="space-between" align="flex-start">
-        <div>
-          <Text size="xs" c="dimmed" fw={500}>
-            {label}
-          </Text>
-          <Text size="xl" fw={700} mt={4}>
-            {value}
-          </Text>
-          {hint && (
-            <Text size="xs" c="dimmed" mt={4}>
-              {hint}
-            </Text>
-          )}
-        </div>
-
-        {icon && (
-          <Box
-            p={6}
-            style={{
-              borderRadius: rem(999),
-              border: '1px solid rgba(255,255,255,.1)',
-              background: 'radial-gradient(circle at 30% 0%, rgba(81,204,255,.35), transparent)',
-            }}
-          >
-            {icon}
-          </Box>
-        )}
+      <Group gap="lg" justify="space-between">
+        <MiniStat
+          label="Distance ce mois-ci"
+          value={`${summary.distanceThisMonthKm.toLocaleString('fr-FR')} km`}
+          icon={<TbTimeline size={16} />}
+        />
+        <MiniStat
+          label="Trajets ce mois-ci"
+          value={
+            summary.travelsThisMonth > 0
+              ? `${summary.travelsThisMonth} (${averageDistance} km / trajet)`
+              : 'Aucun'
+          }
+          icon={<TbRoute size={16} />}
+        />
+        <MiniStat
+          label="Distance cette année"
+          value={`${summary.distanceThisYearKm.toLocaleString('fr-FR')} km`}
+          icon={<TbCalendarTime size={16} />}
+        />
       </Group>
     </Paper>
   )
 }
 
+interface MiniStatProps {
+  label: string
+  value: string
+  icon?: React.ReactNode
+}
+
+function MiniStat({ label, value, icon }: MiniStatProps) {
+  return (
+    <Group gap="xs" align="center">
+      {icon && (
+        <Box
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: rem(26),
+            height: rem(26),
+            borderRadius: rem(999),
+            background:
+              'radial-gradient(circle at 30% 0%, rgba(120,220,255,0.95), rgba(8,30,46,1))',
+            boxShadow:
+              '0 0 0 1px rgba(255,255,255,0.06), 0 6px 14px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.25)',
+          }}
+        >
+          {icon}
+        </Box>
+      )}
+
+      <Stack gap={2} align="flex-start">
+        <Text size="xs" c="dimmed">
+          {label}
+        </Text>
+        <Text size="sm" fw={600}>
+          {value}
+        </Text>
+      </Stack>
+    </Group>
+  )
+}
+
 // -----------------------------------------------------------------------------
-// Timeline des derniers trajets
+// Timeline des derniers trajets (activité récente)
 // -----------------------------------------------------------------------------
 
 interface DashboardTimelineProps {
@@ -257,7 +212,10 @@ interface DashboardTimelineProps {
 }
 
 /**
- * Timeline des derniers trajets (sous forme de liste de cartes)
+ * Activité récente :
+ * - Icône LuMapPin à gauche de la card
+ * - 2 noms d’adresses à droite
+ * - Pills en dessous (un peu plus grandes)
  */
 function DashboardTimeline({ travels }: DashboardTimelineProps) {
   return (
@@ -290,37 +248,50 @@ function DashboardTimeline({ travels }: DashboardTimelineProps) {
               withBorder
               style={{
                 borderColor: 'rgba(255,255,255,.08)',
-                background:
-                  'linear-gradient(135deg, rgba(56,183,238,.15), rgba(10,10,20,.6))',
+                background: 'linear-gradient(135deg, rgba(40,55,90,.3), rgba(5,10,25,.9))',
               }}
             >
-              <Group justify="space-between" align="flex-start" gap="xs">
-                <Stack gap={2} style={{ flex: 1 }}>
-                  <Group gap={6} align="center">
-                    {/* Petit rond bleu lumineux */}
-                    <Box
-                      mr={4}
-                      style={{
-                        width: rem(8),
-                        height: rem(8),
-                        borderRadius: '999px',
-                        boxShadow: '0 0 0 4px rgba(56,183,238,.25)',
-                        background: 'radial-gradient(circle, #51ccff 0%, #0d3a4c 70%)',
-                      }}
-                    />
-                    <Text size="sm" fw={600}>
-                      {travel.fromLabel}
-                    </Text>
-                    <TbArrowRight size={14} />
-                    <Text size="sm" fw={600}>
-                      {travel.toLabel}
-                    </Text>
-                  </Group>
+              <Group align="flex-start" gap="md">
+                {/* Icône LuMapPin à gauche */}
+                <Box
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: rem(34),
+                    height: rem(34),
+                    borderRadius: rem(999),
+                    background:
+                      'radial-gradient(circle at 30% 0%, rgba(120,220,255,0.95), rgba(8,30,46,1))',
+                    boxShadow:
+                      '0 0 0 1px rgba(255,255,255,0.06), 0 8px 18px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.25)',
+                    flexShrink: 0,
+                  }}
+                >
+                  <LuMapPin size={18} />
+                </Box>
 
+                {/* Contenu à droite : 2 noms + pills */}
+                <Stack gap={6} style={{ flex: 1 }}>
+                  {/* Noms des adresses */}
+                  <Stack gap={2}>
+                    <Group gap={6} align="center">
+                      <Text size="sm" fw={600}>
+                        {travel.fromLabel}
+                      </Text>
+                      <TbArrowRight size={14} />
+                      <Text size="sm" fw={600}>
+                        {travel.toLabel}
+                      </Text>
+                    </Group>
+                  </Stack>
+
+                  {/* Pills info */}
                   <Group gap="xs" wrap="wrap">
                     <Badge
                       variant="light"
-                      size="xs"
+                      size="sm"
+                      radius="xl"
                       leftSection={<TbCalendarTime size={12} />}
                     >
                       {travel.dateLabel}
@@ -328,57 +299,47 @@ function DashboardTimeline({ travels }: DashboardTimelineProps) {
 
                     <Badge
                       variant="light"
-                      size="xs"
+                      size="sm"
+                      radius="xl"
                       leftSection={<TbMapPin2 size={12} />}
                     >
                       {travel.distanceLabel}
                     </Badge>
 
                     {typeof travel.stepsCount === 'number' && (
-                      <Badge variant="outline" size="xs">
-                        {travel.stepsCount} étape
-                        {travel.stepsCount > 1 ? 's' : ''}
+                      <Badge variant="outline" size="sm" radius="xl">
+                        {travel.stepsCount} étape{travel.stepsCount > 1 ? 's' : ''}
                       </Badge>
                     )}
 
                     {travel.durationLabel && (
-                      <Badge variant="outline" size="xs">
+                      <Badge variant="outline" size="sm" radius="xl">
                         {travel.durationLabel}
                       </Badge>
                     )}
 
                     {travel.status && (
                       <Badge
-                        size="xs"
+                        size="sm"
+                        radius="xl"
                         variant="dot"
                         color={
                           travel.status === 'completed'
                             ? 'teal'
                             : travel.status === 'draft'
-                            ? 'yellow'
-                            : 'red'
+                              ? 'yellow'
+                              : 'red'
                         }
                       >
                         {travel.status === 'completed'
                           ? 'Terminé'
                           : travel.status === 'draft'
-                          ? 'Brouillon'
-                          : 'Annulé'}
+                            ? 'Brouillon'
+                            : 'Annulé'}
                       </Badge>
                     )}
                   </Group>
                 </Stack>
-
-                <Box
-                  p={6}
-                  style={{
-                    borderRadius: '999px',
-                    border: '1px solid rgba(255,255,255,.08)',
-                    background: 'rgba(0,0,0,.25)',
-                  }}
-                >
-                  <TbMapPin size={16} />
-                </Box>
               </Group>
             </Paper>
           ))}
