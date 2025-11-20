@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/react'
 import {
   Badge,
   Box,
+  Breadcrumbs,
   Button,
   Container,
   Group,
@@ -22,6 +23,8 @@ import { TravelActionMenu } from '~/components/travels/travel_action_menu'
 import { ConfirmDeleteModal } from '~/components/generics/confirm_delete_modal'
 import { FlashMessages } from '~/components/flash_messages'
 import { jsonFetch } from '~/services/http'
+import { BackButton } from '~/components/generics/back_buttons'
+
 
 type TravelRow = {
   id: number
@@ -92,6 +95,12 @@ function Index({ travels, meta }: IndexProps) {
       <Head title="Trajets" />
       <FlashMessages flash={flash} />
       <Container py="lg">
+        <BackButton href="/dashboard" />
+        <Breadcrumbs>
+          <Text size="sm" c="dimmed">
+            Tableau de bord
+          </Text>
+        <Text size="sm">Trajets</Text></Breadcrumbs>
         <Group justify="space-between" mb="md" align="center">
           <Group gap="xs" align="center">
             <Title order={2}>Trajets</Title>
