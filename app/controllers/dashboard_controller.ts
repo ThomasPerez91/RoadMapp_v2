@@ -42,9 +42,10 @@ export default class DashboardController {
 
     const now = DateTime.local()
     const startOfYear = now.startOf('year')
-    const startForStats = now.minus({ months: 11 }).startOf('month')
 
-    // On récupère les trajets sur les 12 derniers mois (pour alimenter les graphes)
+    // On va chercher jusqu'à 4 ans en arrière pour alimenter les graphes annuels
+    const startForStats = now.minus({ years: 4 }).startOf('year')
+
     const travelsForStats = await Travel.query()
       .where('user_id', user.id)
       .andWhere('date', '>=', startForStats.toJSDate())
@@ -91,6 +92,54 @@ export default class DashboardController {
       recentTravels,
     })
   }
+
+  /**
+   * Données de stats pour une période personnalisée (JSON)
+   * GET /dashboard/stats?from=YYYY-MM-DD&to=YYYY-MM-DD
+   */
+  async stats({ request, auth, response }: HttpContext) {
+    await auth.check()
+    const user = auth.user!
+
+    const fromStr = request.input('from')
+    const toStr = request.input('to')
+
+    if (!fromStr || !toStr) {
+      return response.badRequest({ error: 'Missing from/to query params' })
+    }
+
+    const from = DateTime.fromISO(fromStr).startOf('day')
+    const to = DateTime.fromISO(toStr).endOf('day')
+
+    if (!from.isValid || !to.isValid || from > to) {
+      return response.badRequest({ error: 'Invalid date range' })
+    }
+
+    const travels = await Travel.query()
+      .where('user_id', user.id)
+      .andWhere('date', '>=', from.toJSDate())
+      .andWhere('date', '<=', to.toJSDate())
+      .orderBy('date', 'asc')
+
+    // Agrégation par jour dans la plage sélectionnée
+    const dailyMap = new Map<string, number>()
+
+    for (const travel of travels) {
+      const d = DateTime.fromJSDate(travel.date)
+      const label = d.setLocale('fr').toFormat('dd LLL yyyy') // ex: "04 déc. 2025"
+      const prev = dailyMap.get(label) || 0
+      dailyMap.set(label, prev + (travel.distance || 0) / 1000)
+    }
+
+    const data: DistancePoint[] = Array.from(dailyMap.entries()).map(([label, km]) => ({
+      label,
+      distanceKm: Math.round(km * 10) / 10,
+    }))
+
+    const totalKm = data.reduce((sum, point) => sum + point.distanceKm, 0)
+
+    return response.json({ data, totalKm })
+  }
 }
 
 /**
@@ -105,50 +154,84 @@ function roundKm(meters: number): number {
 /**
  * Construit les données "week / month / year" pour l'histogramme.
  *
- * - week  : derniers 7 jours, groupés par jour (dd/MM)
- * - month : derniers 30 jours, groupés par jour (dd/MM)
- * - year  : derniers 12 mois, groupés par mois (LLL yyyy)
+ * - week  : 5 dernières semaines, ordre chronologique, semaine actuelle en dernier (Sxx)
+ * - month : 12 derniers mois, ordre chronologique, mois courant en dernier (LLL yyyy)
+ * - year  : une barre par année contenant des trajets, triées, année actuelle en dernier
  */
 function buildChartData(travels: Travel[], now: DateTime): DashboardChartData {
-  const weekStart = now.minus({ days: 6 }).startOf('day')
-  const monthStart = now.minus({ days: 29 }).startOf('day')
-  const yearStart = now.minus({ months: 11 }).startOf('month')
+  // --- SEMAINE : 5 dernières semaines ---------------------------------------
 
-  const weekMap = new Map<string, number>()
-  const monthMap = new Map<string, number>()
-  const yearMap = new Map<string, number>()
+  const currentWeekStart = now.startOf('week')
+  const firstWeekStart = currentWeekStart.minus({ weeks: 4 }) // 5 semaines au total
+  const lastWeekEnd = currentWeekStart.endOf('week')
+
+  const weekBuckets = new Array<number>(5).fill(0)
 
   for (const travel of travels) {
     const d = DateTime.fromJSDate(travel.date)
-    const distanceKm = (travel.distance || 0) / 1000
+    if (d < firstWeekStart || d > lastWeekEnd) continue
 
-    if (d >= weekStart) {
-      const label = d.toFormat('dd/MM')
-      weekMap.set(label, (weekMap.get(label) || 0) + distanceKm)
-    }
-
-    if (d >= monthStart) {
-      const label = d.toFormat('dd/MM')
-      monthMap.set(label, (monthMap.get(label) || 0) + distanceKm)
-    }
-
-    if (d >= yearStart) {
-      const label = d.toFormat('LLL yyyy')
-      yearMap.set(label, (yearMap.get(label) || 0) + distanceKm)
+    const diffWeeks = Math.floor(d.diff(firstWeekStart, 'weeks').weeks)
+    if (diffWeeks >= 0 && diffWeeks < 5) {
+      weekBuckets[diffWeeks] += (travel.distance || 0) / 1000
     }
   }
 
-  const mapToPoints = (source: Map<string, number>): DistancePoint[] =>
-    Array.from(source.entries()).map(([label, distanceKm]) => ({
+  const week: DistancePoint[] = weekBuckets.map((distanceKm, index) => {
+    const weekStart = firstWeekStart.plus({ weeks: index })
+    const label = `S${weekStart.weekNumber}`
+    return {
       label,
       distanceKm: Math.round(distanceKm * 10) / 10,
-    }))
+    }
+  })
 
-  return {
-    week: mapToPoints(weekMap),
-    month: mapToPoints(monthMap),
-    year: mapToPoints(yearMap),
+  // --- MOIS : 12 derniers mois ----------------------------------------------
+
+  const currentMonthStart = now.startOf('month')
+  const firstMonthStart = currentMonthStart.minus({ months: 11 }) // 12 mois
+  const lastMonthEnd = currentMonthStart.endOf('month')
+
+  const monthBuckets = new Array<number>(12).fill(0)
+
+  for (const travel of travels) {
+    const d = DateTime.fromJSDate(travel.date)
+    if (d < firstMonthStart || d > lastMonthEnd) continue
+
+    const diffMonths = Math.floor(d.diff(firstMonthStart, 'months').months)
+    if (diffMonths >= 0 && diffMonths < 12) {
+      monthBuckets[diffMonths] += (travel.distance || 0) / 1000
+    }
   }
+
+  const month: DistancePoint[] = monthBuckets.map((distanceKm, index) => {
+    const monthStart = firstMonthStart.plus({ months: index })
+    const label = monthStart.setLocale('fr').toFormat('LLL yyyy')
+    return {
+      label,
+      distanceKm: Math.round(distanceKm * 10) / 10,
+    }
+  })
+
+  // --- ANNEE : 1 colonne par année avec des données -------------------------
+
+  const yearMap = new Map<number, number>()
+
+  for (const travel of travels) {
+    const d = DateTime.fromJSDate(travel.date)
+    const year = d.year
+    const prev = yearMap.get(year) || 0
+    yearMap.set(year, prev + (travel.distance || 0) / 1000)
+  }
+
+  const yearsSorted = Array.from(yearMap.keys()).sort((a, b) => a - b)
+
+  const year: DistancePoint[] = yearsSorted.map((year) => ({
+    label: year.toString(),
+    distanceKm: Math.round(yearMap.get(year)! * 10) / 10,
+  }))
+
+  return { week, month, year }
 }
 
 /**
@@ -171,10 +254,10 @@ async function buildRecentTravels(userId: number, limit = 10): Promise<Dashboard
     const lastLeg = travel.legs[travel.legs.length - 1] ?? firstLeg
 
     const fromLabel = firstLeg?.startAddress ? buildShortAddress(firstLeg.startAddress) : 'Départ'
-
     const toLabel = lastLeg?.endAddress ? buildShortAddress(lastLeg.endAddress) : 'Arrivée'
 
-    const dateLabel = date.toFormat("ccc d LLL yyyy '·' HH:mm")
+    // 👉 Date SANS l'heure pour l'activité récente
+    const dateLabel = date.toFormat('ccc d LLL yyyy')
 
     const distanceLabel = travel.distanceToString || `${roundKm(travel.distance)} km`
 
@@ -189,21 +272,15 @@ async function buildRecentTravels(userId: number, limit = 10): Promise<Dashboard
   })
 }
 
-/**
- * Construit un libellé court pour une adresse (nom + ville / CP).
- */
 function buildShortAddress(a: Address): string {
-  // priorité au nom que tu as défini dans le carnet d'adresses
   if (a.name && a.name.trim().length > 0) {
     return a.name
   }
 
-  // si pas de nom, on peut fallback sur la ville
   if ((a as any).city && (a as any).city.trim().length > 0) {
     return (a as any).city
   }
 
-  // en dernier recours : la ligne d'adresse brute
   if (a.address && a.address.trim().length > 0) {
     return a.address
   }

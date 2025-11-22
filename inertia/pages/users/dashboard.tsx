@@ -14,7 +14,7 @@ import {
 } from '@mantine/core'
 import { DatePickerInput } from '@mantine/dates'
 import { BarChart } from '@mantine/charts'
-import { useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { TbArrowRight, TbCalendarTime, TbMapPin2, TbRoute, TbTimeline } from 'react-icons/tb'
 import { LuMapPin } from 'react-icons/lu'
 import UserLayout from '~/layouts/user_layout'
@@ -62,17 +62,70 @@ function Dashboard({ summary, chart, recentTravels }: DashboardProps) {
   const [period, setPeriod] = useState<DashboardPeriod>('month')
   const [range, setRange] = useState<[Date | null, Date | null]>([null, null])
 
-  const effectivePeriod: Exclude<DashboardPeriod, 'custom'> = period === 'custom' ? 'month' : period
+  // Données pour la période personnalisée
+  const [customData, setCustomData] = useState<DistancePoint[]>([])
+  const [customLoading, setCustomLoading] = useState(false)
 
-  const chartData = chart[effectivePeriod] ?? []
+  const isCustom = period === 'custom'
+
+  // Clé pour les données "de base" (week / month / year)
+  const baseKey: keyof DashboardChartData =
+    period === 'week' || period === 'month' || period === 'year' ? period : 'month'
+
+  const baseData = chart[baseKey] ?? []
+  const chartData: DistancePoint[] = isCustom ? customData : baseData
+
+  // Helper pour convertir ce que renvoie Mantine en YYYY-MM-DD
+  const toIsoDate = (value: unknown): string | null => {
+    if (!value) return null
+    if (value instanceof Date) {
+      return value.toISOString().slice(0, 10)
+    }
+    const d = new Date(value as any)
+    if (Number.isNaN(d.getTime())) return null
+    return d.toISOString().slice(0, 10)
+  }
+
+  // Fetch des données quand on est en mode personnalisé et qu'on a 2 dates
+  useEffect(() => {
+    if (!isCustom) {
+      setCustomData([])
+      return
+    }
+
+    const [fromRaw, toRaw] = range
+    const from = toIsoDate(fromRaw)
+    const to = toIsoDate(toRaw)
+
+    if (!from || !to) {
+      setCustomData([])
+      return
+    }
+
+    const params = new URLSearchParams({ from, to })
+
+    setCustomLoading(true)
+
+    fetch(`/dashboard/stats?${params.toString()}`, {
+      headers: { Accept: 'application/json' },
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed to load custom stats')
+        const json = await res.json()
+        setCustomData(json.data ?? [])
+      })
+      .catch(() => {
+        setCustomData([])
+      })
+      .finally(() => setCustomLoading(false))
+  }, [isCustom, range[0], range[1]])
 
   return (
     <>
       <Head title="Dashboard" />
 
-      <Container size="lg" py="md">
+      <Container size="lg" py="sm">
         <Stack gap="lg">
-          {/* Header + bandeau fin de stats */}
           <Group justify="space-between" align="flex-start">
             <Stack gap={4}>
               <Title order={2}>Bonjour, {user.user?.name}</Title>
@@ -86,17 +139,20 @@ function Dashboard({ summary, chart, recentTravels }: DashboardProps) {
 
           {/* Timeline & Graph */}
           <Grid gutter="lg">
-            <Grid.Col span={{ base: 12, md: 6 }}>
+            {/* Légèrement plus petit */}
+            <Grid.Col span={{ base: 12, md: 5 }}>
               <DashboardTimeline travels={recentTravels} />
             </Grid.Col>
 
-            <Grid.Col span={{ base: 12, md: 6 }}>
+            {/* Légèrement plus grand */}
+            <Grid.Col span={{ base: 12, md: 7 }}>
               <DashboardDistanceChartCard
                 period={period}
                 onPeriodChange={setPeriod}
                 range={range}
                 onRangeChange={setRange}
                 data={chartData}
+                isCustomLoading={customLoading}
               />
             </Grid.Col>
           </Grid>
@@ -112,16 +168,13 @@ Dashboard.layout = (page: any) => <UserLayout>{page}</UserLayout>
 export default Dashboard
 
 // -----------------------------------------------------------------------------
-// Bandeau de stats mince dans le header (élargi + icônes)
+// Header stats
 // -----------------------------------------------------------------------------
 
 interface DashboardHeaderStatsProps {
   summary: DashboardSummary
 }
 
-/**
- * Bandeau compact : 3 mini stats avec label + valeur + petite icône.
- */
 function DashboardHeaderStats({ summary }: DashboardHeaderStatsProps) {
   const averageDistance =
     summary.travelsThisMonth > 0
@@ -211,12 +264,6 @@ interface DashboardTimelineProps {
   travels: DashboardTravelItem[]
 }
 
-/**
- * Activité récente :
- * - Icône LuMapPin à gauche de la card
- * - 2 noms d’adresses à droite
- * - Pills en dessous (un peu plus grandes)
- */
 function DashboardTimeline({ travels }: DashboardTimelineProps) {
   return (
     <Paper withBorder radius="lg" shadow="sm" p="md">
@@ -276,7 +323,7 @@ function DashboardTimeline({ travels }: DashboardTimelineProps) {
                   {/* Noms des adresses */}
                   <Stack gap={2}>
                     <Group gap={6} align="center">
-                      <Text size="sm" fw={600}>
+                      <Text size="sm" fw={600} style={{ paddingLeft: 4 }}>
                         {travel.fromLabel}
                       </Text>
                       <TbArrowRight size={14} />
@@ -307,7 +354,7 @@ function DashboardTimeline({ travels }: DashboardTimelineProps) {
                     </Badge>
 
                     {typeof travel.stepsCount === 'number' && (
-                      <Badge variant="outline" size="sm" radius="xl">
+                      <Badge variant="light" size="sm" radius="xl">
                         {travel.stepsCount} étape{travel.stepsCount > 1 ? 's' : ''}
                       </Badge>
                     )}
@@ -350,6 +397,67 @@ function DashboardTimeline({ travels }: DashboardTimelineProps) {
 }
 
 // -----------------------------------------------------------------------------
+// ChartContainer : évite le warning width(-1)/height(-1) de Recharts
+// -----------------------------------------------------------------------------
+
+const MIN_CHART_DIMENSION = 32
+
+interface ChartContainerProps {
+  children: React.ReactNode
+}
+
+function ChartContainer({ children }: ChartContainerProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const [isReady, setIsReady] = useState(false)
+
+  useLayoutEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const update = (rect?: DOMRectReadOnly | DOMRect) => {
+      const r = rect ?? el.getBoundingClientRect()
+      if (r.width >= MIN_CHART_DIMENSION && r.height >= MIN_CHART_DIMENSION) {
+        setIsReady(true)
+      }
+    }
+
+    update()
+
+    if (typeof ResizeObserver === 'undefined') return
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.target === el) {
+          update(entry.contentRect)
+        }
+      }
+    })
+
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div
+      ref={containerRef}
+      data-chart-ready={isReady ? 'true' : 'false'}
+      style={{
+        width: '100%',
+        minWidth: 0,
+        minHeight: 260,
+        display: 'flex',
+        justifyContent: 'center',
+        opacity: isReady ? 1 : 0,
+        transition: 'opacity 120ms ease-out',
+        pointerEvents: isReady ? 'auto' : 'none',
+      }}
+    >
+      {isReady ? children : null}
+    </div>
+  )
+}
+
+// -----------------------------------------------------------------------------
 // Carte histogramme des distances
 // -----------------------------------------------------------------------------
 
@@ -359,17 +467,16 @@ interface DashboardDistanceChartCardProps {
   range: [Date | null, Date | null]
   onRangeChange: (value: [Date | null, Date | null]) => void
   data: DistancePoint[]
+  isCustomLoading?: boolean
 }
 
-/**
- * Carte “Kilomètres parcourus” avec filtre de période + histogramme
- */
 function DashboardDistanceChartCard({
   period,
   onPeriodChange,
   range,
   onRangeChange,
   data,
+  isCustomLoading,
 }: DashboardDistanceChartCardProps) {
   const isCustom = period === 'custom'
   const total = data.reduce((sum, point) => sum + point.distanceKm, 0)
@@ -377,22 +484,62 @@ function DashboardDistanceChartCard({
   return (
     <Paper withBorder radius="lg" shadow="sm" p="md">
       <Stack gap="sm">
-        <Group justify="space-between" align="flex-start">
+        {/* Header */}
+        <Group justify="space-between" align="center">
           <div>
             <Text size="xs" c="dimmed" fw={500}>
               Statistiques
             </Text>
             <Text fw={600}>Kilomètres parcourus</Text>
-            <Text size="xs" c="dimmed" mt={4}>
-              Vue agrégée de la distance parcourue sur la période sélectionnée.
-            </Text>
           </div>
+        </Group>
 
-          <Stack gap={6} align="flex-end">
+        {/* Filtres + picker */}
+        <Stack gap="6">
+          <Group gap="xs" align="center">
             <SegmentedControl
+              radius="xl"
               size="xs"
               value={period}
               onChange={(value: string) => onPeriodChange(value as DashboardPeriod)}
+              styles={{
+                root: {
+                  background: 'rgba(15,23,42,0.90)',
+                  border: '1px solid rgba(56,189,248,0.35)',
+                  borderRadius: 999,
+                  padding: 3,
+                  gap: 0,
+                },
+                indicator: {
+                  background: 'rgba(22,30,49,1)',
+                  border: '1px solid rgba(56,189,248,0.5)',
+                  borderRadius: 999,
+                  transition: 'all .20s ease',
+                },
+                label: {
+                  'position': 'relative',
+                  'fontSize': 13,
+                  'fontWeight': 500,
+                  'padding': '6px 16px',
+                  'color': '#94a3b8',
+                  '&[dataActive]': {
+                    color: '#38bdf8',
+                    fontWeight: 600,
+                  },
+                  '&::after': {
+                    content: '""',
+                    position: 'absolute',
+                    right: 0,
+                    top: '25%',
+                    height: '50%',
+                    width: '1px',
+                    background: 'rgba(56,189,248,0.25)',
+                  },
+                  '&:lastOfType::after': {
+                    display: 'none',
+                  },
+                },
+              }}
               data={[
                 { label: 'Semaine', value: 'week' },
                 { label: 'Mois', value: 'month' },
@@ -400,43 +547,106 @@ function DashboardDistanceChartCard({
                 { label: 'Perso', value: 'custom' },
               ]}
             />
+          </Group>
 
-            {isCustom && (
+          {isCustom && (
+            <Box mt={2} style={{ display: 'flex', justifyContent: 'flex-start' }}>
               <DatePickerInput
                 type="range"
                 value={range}
                 onChange={(value) => onRangeChange(value as [Date | null, Date | null])}
                 size="xs"
-                placeholder="Choisir une période"
+                radius="xl"
+                defaultLevel="year"
+                popoverProps={{
+                  withinPortal: true,
+                  shadow: 'xl',
+                  radius: 'lg',
+                  styles: {
+                    dropdown: {
+                      background: 'linear-gradient(145deg, rgba(7,14,24,.98), rgba(15,23,42,.96))',
+                      border: '1px solid rgba(148,163,184,.45)',
+                    },
+                  },
+                }}
+                leftSection={<TbCalendarTime size={14} />}
+                placeholder="Période personnalisée"
+                clearable
+                styles={{
+                  input: {
+                    background: 'rgba(15,23,42,.9)',
+                    borderColor: 'rgba(56,189,248,.6)',
+                    borderWidth: 1,
+                    borderStyle: 'solid',
+                    color: '#e5e7eb',
+                  },
+                  day: {
+                    '&[data-selected]': {
+                      background:
+                        'linear-gradient(135deg, rgba(56,189,248,.8), rgba(129,140,248,.9))',
+                      color: 'white',
+                    },
+                    '&[data-in-range]': {
+                      background: 'rgba(56,189,248,.15)',
+                    },
+                    '&[data-weekend]': {
+                      color: '#f97373',
+                    },
+                  },
+                  weekday: {
+                    color: '#9ca3af',
+                    fontWeight: 500,
+                  },
+                  month: {
+                    color: '#e5e7eb',
+                    fontWeight: 600,
+                  },
+                }}
               />
-            )}
-          </Stack>
-        </Group>
+            </Box>
+          )}
+        </Stack>
 
-        <Box mt="xs">
-          {data.length === 0 ? (
+        {/* Chart */}
+        <Box mt="xs" style={{ minWidth: 0, width: '100%', minHeight: 260 }}>
+          {isCustom && isCustomLoading ? (
+            <Text size="sm" c="dimmed">
+              Chargement des données pour cette période…
+            </Text>
+          ) : data.length === 0 ? (
             <Text size="sm" c="dimmed">
               Pas encore de données pour cette période.
             </Text>
           ) : (
-            <BarChart
-              h={260}
-              data={data}
-              dataKey="label"
-              series={[{ name: 'distanceKm', label: 'Distance (km)' }]}
-              withXAxis
-              withYAxis
-              withTooltip
-              valueFormatter={(value) =>
-                `${(value as number).toLocaleString('fr-FR', {
-                  maximumFractionDigits: 1,
-                })} km`
-              }
-              tickLine="y"
-            />
+            <ChartContainer>
+              <BarChart
+                h={260}
+                data={data}
+                dataKey="label"
+                series={[{ name: 'distanceKm', label: 'Distance (km)' }]}
+                withXAxis
+                withYAxis
+                withTooltip
+                unit=" km"
+                valueFormatter={(value) =>
+                  (value as number).toLocaleString('fr-FR', {
+                    maximumFractionDigits: 1,
+                  })
+                }
+                tickLine="y"
+                barProps={{ radius: 8 }}
+                tooltipProps={{
+                  cursor: { fill: 'rgba(81,204,255,0.12)' },
+                  content: ({ label, payload }) => (
+                    <DistanceChartTooltip label={label} payload={payload} />
+                  ),
+                }}
+              />
+            </ChartContainer>
           )}
         </Box>
 
+        {/* Total */}
         <Group justify="space-between" mt="xs">
           <Text size="sm" c="dimmed">
             Total de la période
@@ -446,6 +656,30 @@ function DashboardDistanceChartCard({
           </Text>
         </Group>
       </Stack>
+    </Paper>
+  )
+}
+
+interface DistanceChartTooltipProps {
+  label: React.ReactNode
+  payload?: readonly any[]
+}
+
+function DistanceChartTooltip({ label, payload }: DistanceChartTooltipProps) {
+  if (!payload || payload.length === 0) return null
+  const item = payload[0]
+  const value = item?.value as number | undefined
+
+  return (
+    <Paper px="sm" py={6} radius="lg" withBorder shadow="md">
+      <Text size="xs" c="dimmed">
+        {label}
+      </Text>
+      {typeof value === 'number' && (
+        <Text size="sm" fw={600}>
+          {value.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} km
+        </Text>
+      )}
     </Paper>
   )
 }
