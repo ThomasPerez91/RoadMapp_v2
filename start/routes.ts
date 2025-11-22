@@ -8,7 +8,6 @@ const UsersController = () => import('#controllers/users_controller')
 const MetricsController = () => import('#controllers/metrics_controller')
 const DashboardController = () => import('#controllers/dashboard_controller')
 
-
 router.on('/').renderInertia('home')
 
 router.get('/settings', [UsersController, 'settings']).middleware([middleware.auth()])
@@ -43,5 +42,5 @@ router.get('/travels', [TravelsController, 'index']).middleware([middleware.auth
 router.get('/travels/create', [TravelsController, 'create']).middleware([middleware.auth()])
 router.get('/travels/:id/edit', [TravelsController, 'edit']).middleware([middleware.auth()])
 
-router.get('/dashboard', [DashboardController, 'index']).middleware([middleware.auth()])
-
+router.get('/dashboard', [DashboardController, 'index']).as('dashboard.index')
+router.get('/dashboard/stats', [DashboardController, 'stats']).as('dashboard.stats')
