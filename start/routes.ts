@@ -42,5 +42,5 @@ router.get('/travels', [TravelsController, 'index']).middleware([middleware.auth
 router.get('/travels/create', [TravelsController, 'create']).middleware([middleware.auth()])
 router.get('/travels/:id/edit', [TravelsController, 'edit']).middleware([middleware.auth()])
 
-router.get('/dashboard', [DashboardController, 'index']).as('dashboard.index')
-router.get('/dashboard/stats', [DashboardController, 'stats']).as('dashboard.stats')
+router.get('/dashboard', [DashboardController, 'index']).as('dashboard.index').middleware([middleware.auth()])
+router.get('/dashboard/stats', [DashboardController, 'stats']).as('dashboard.stats').middleware([middleware.auth()])
