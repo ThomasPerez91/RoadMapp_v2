@@ -1,6 +1,5 @@
 // app/services/travel_template.ts
 import { DateTime } from 'luxon'
-import ExcelJS from 'exceljs'
 import PDFDocument from 'pdfkit'
 import app from '@adonisjs/core/services/app'
 import fs from 'node:fs'
@@ -68,7 +67,7 @@ function formatKmLabel(value: number): string {
 
 /**
  * Construit les lignes + totaux
- * Option B : total = somme des valeurs affichées (distanceKm), pas la somme exacte BDD.
+ * Option B : total = somme des valeurs affichées (distanceKm).
  */
 export async function buildTravelTemplate(
   userId: number,
@@ -95,20 +94,22 @@ export async function buildTravelTemplate(
 
   const rows: TravelTemplateRow[] = dtos.map((t) => {
     const distanceKm = kmFromMeters(t.distance)
-    const stepsCount = Number(t.stepsCount ?? 0) // 🔥 cast en number ICI
+    const steps = Number(t.stepsCount ?? 0) // <--- force en number ici
     return {
       id: t.id,
       date: t.date,
       distanceToString: t.distanceToString,
       distanceKm,
-      stepsCount,
+      stepsCount: steps,
     }
   })
 
   // ---------- Totaux basés sur les valeurs affichées ----------
-  // stepsCount est maintenant un number, la somme reste numérique
   const totalKm = rows.reduce((sum, r) => sum + r.distanceKm, 0)
-  const totalSteps = rows.reduce((sum, r) => sum + r.stepsCount, 0)
+  const totalSteps = rows.reduce(
+    (sum, r) => sum + Number(r.stepsCount ?? 0), // <--- et on re-force ici, au cas où
+    0
+  )
 
   // ---------- Legs détaillés ----------
   if (detailed && rows.length > 0) {
@@ -147,102 +148,6 @@ export async function buildTravelTemplate(
     totalSteps,
     rows,
   }
-}
-
-/**
- * EXCEL
- */
-export async function generateTravelTemplateExcel(
-  template: TravelTemplate,
-  detailed: boolean
-): Promise<Buffer> {
-  const workbook = new ExcelJS.Workbook()
-  const sheet = workbook.addWorksheet('Trajets')
-
-  sheet.mergeCells('A1', detailed ? 'E1' : 'C1')
-  sheet.getCell('A1').value = 'ROADMAPP'
-  sheet.getCell('A1').font = { bold: true, size: 18 }
-  sheet.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' }
-
-  sheet.mergeCells('A2', detailed ? 'E2' : 'C2')
-  sheet.getCell('A2').value = 'HISTORIQUE DES TRAJETS DU'
-  sheet.getCell('A2').font = { bold: true, size: 12 }
-  sheet.getCell('A2').alignment = { horizontal: 'center', vertical: 'middle' }
-
-  sheet.mergeCells('A3', detailed ? 'E3' : 'C3')
-  sheet.getCell('A3').value = `DU ${formatDateFr(template.from)} AU ${formatDateFr(template.to)}`
-  sheet.getCell('A3').alignment = { horizontal: 'center', vertical: 'middle' }
-
-  sheet.addRow([])
-  sheet.addRow([])
-
-  if (!detailed) {
-    // ---- RÉCAP ----
-    sheet.columns = [
-      { header: 'DATE', key: 'date', width: 14 },
-      { header: 'ETAPES', key: 'steps', width: 10 },
-      { header: 'DISTANCE', key: 'distance', width: 18 },
-    ]
-
-    const headerRow = sheet.addRow(['DATE', 'ETAPES', 'DISTANCE'])
-    headerRow.font = { bold: true }
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' }
-
-    for (const row of template.rows) {
-      const r = sheet.addRow([formatDateFr(row.date), row.stepsCount ?? 0, row.distanceToString])
-      r.alignment = { horizontal: 'center', vertical: 'middle' }
-    }
-
-    const totalKmLabel: string = formatKmLabel(template.totalKm)
-
-    const totalRow = sheet.addRow(['TOTAL', template.totalSteps, totalKmLabel])
-    totalRow.font = { bold: true }
-    totalRow.alignment = { horizontal: 'center', vertical: 'middle' }
-  } else {
-    // ---- DÉTAILLÉ ----
-    sheet.columns = [
-      { header: 'DATE', key: 'date', width: 14 },
-      { header: 'ETAPES', key: 'steps', width: 10 },
-      { header: 'DISTANCE', key: 'distance', width: 18 },
-      { header: 'DEPART', key: 'from', width: 35 },
-      { header: 'ARRIVEE', key: 'to', width: 35 },
-    ]
-
-    const headerRow = sheet.addRow(['DATE', 'ETAPES', 'DISTANCE', 'DEPART', 'ARRIVEE'])
-    headerRow.font = { bold: true }
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle' }
-
-    for (const row of template.rows) {
-      const main = sheet.addRow([
-        formatDateFr(row.date),
-        row.stepsCount ?? 0,
-        row.distanceToString,
-        '',
-        '',
-      ])
-      main.font = { bold: true }
-      main.alignment = { horizontal: 'center', vertical: 'middle' }
-
-      if (row.legs && row.legs.length) {
-        row.legs.forEach((leg, index) => {
-          const r = sheet.addRow([
-            '',
-            index + 1,
-            leg.distanceToString,
-            leg.fromAddressText,
-            leg.toAddressText,
-          ])
-          // adresses lisibles : align top en Excel
-          r.alignment = { vertical: 'top' }
-        })
-      }
-
-      sheet.addRow([])
-    }
-  }
-
-  const buffer = await workbook.xlsx.writeBuffer()
-  return Buffer.from(buffer as ArrayBuffer)
 }
 
 /**
@@ -304,7 +209,7 @@ export async function generateTravelTemplatePdf(
       })
     }
 
-    // --- Logo (préférence PNG, fallback SVG) ---
+    // --- Logo (PNG en priorité, fallback SVG) ---
     try {
       const publicDir = app.makePath('public')
       const logoPng = join(publicDir, 'logo.png')
@@ -390,7 +295,7 @@ export async function generateTravelTemplatePdf(
         y += 18
       }
 
-      // TOTAL global (somme des distances affichées)
+      // TOTAL global
       ensurePage(20)
       x = startX
 
@@ -495,7 +400,6 @@ export async function generateTravelTemplatePdf(
             const toHeight = doc.heightOfString(leg.toAddressText || '', {
               width: colWidths[4] - 2 * padding,
             })
-            // on ajoute 4 * padding pour vraiment centrer verticalement
             const rowHeight = Math.max(18, fromHeight, toHeight) + 4 * padding
 
             ensurePage(rowHeight)
@@ -513,10 +417,8 @@ export async function generateTravelTemplatePdf(
               const w = colWidths[i]
               doc.rect(x, y, w, rowHeight).stroke()
               if (i <= 2) {
-                // numéros & distances centrés verticalement
                 drawCell(c, x, y, w, rowHeight, 'center', false)
               } else {
-                // adresses aussi centrées verticalement dans la cellule
                 drawCell(c, x, y, w, rowHeight, 'left', false)
               }
               x += w
