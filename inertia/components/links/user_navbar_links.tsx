@@ -3,6 +3,7 @@ import { InternalLink } from './internal_link'
 import authUser from '~/hooks/auth'
 import { LuLayoutDashboard } from 'react-icons/lu'
 import { PiAddressBookBold } from 'react-icons/pi'
+import { HiOutlineDocumentText } from 'react-icons/hi2'
 import { RiMapPin2Line } from 'react-icons/ri'
 
 interface UserNavbarLinksProps {
@@ -14,6 +15,7 @@ export const UserNavbarLinks = ({ isMobile }: UserNavbarLinksProps) => {
   const dashboardIcon = <LuLayoutDashboard size={18} />
   const addressBookIcon = <PiAddressBookBold size={18} />
   const travelIcon = <RiMapPin2Line size={18} />
+  const documentIcon = <HiOutlineDocumentText size={18} />
   const direction = isMobile ? 'column' : 'row'
   const align = isMobile ? 'left' : 'center'
 
@@ -52,6 +54,18 @@ export const UserNavbarLinks = ({ isMobile }: UserNavbarLinksProps) => {
                 {travelIcon}
                 <Title order={5} style={{ color: 'var(--mantine-color-sand-12)', fontWeight: 600 }}>
                   Trajets
+                </Title>
+              </Group>
+            }
+          />
+
+          <InternalLink
+            route="/travels/template-export"
+            children={
+              <Group gap="xs" align="center">
+                {documentIcon}
+                <Title order={5} style={{ color: 'var(--mantine-color-sand-12)', fontWeight: 600 }}>
+                  Justificatifs
                 </Title>
               </Group>
             }

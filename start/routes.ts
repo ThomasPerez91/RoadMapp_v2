@@ -7,10 +7,9 @@ const TravelsController = () => import('#controllers/travels_controller')
 const UsersController = () => import('#controllers/users_controller')
 const MetricsController = () => import('#controllers/metrics_controller')
 const DashboardController = () => import('#controllers/dashboard_controller')
+const TravelTemplatesController = () => import('#controllers/travel_templates_controller')
 
 router.on('/').renderInertia('home')
-
-router.get('/settings', [UsersController, 'settings']).middleware([middleware.auth()])
 
 router
   .get('/api/:provider/redirect', [AuthController, 'redirect'])
@@ -34,13 +33,24 @@ router
     router.post('/travels', [TravelsController, 'store'])
     router.put('/travels/:id', [TravelsController, 'update'])
     router.delete('/travels/:id', [TravelsController, 'destroy'])
+
+    router.get('/travels/template-export/preview', [TravelTemplatesController, 'preview'])
+    router.get('/travels/template-export/xlsx', [TravelTemplatesController, 'exportExcel'])
+    router.get('/travels/template-export/pdf', [TravelTemplatesController, 'exportPdf'])
   })
   .prefix('/api')
   .middleware([middleware.auth()])
 
-router.get('/travels', [TravelsController, 'index']).middleware([middleware.auth()])
-router.get('/travels/create', [TravelsController, 'create']).middleware([middleware.auth()])
-router.get('/travels/:id/edit', [TravelsController, 'edit']).middleware([middleware.auth()])
+router
+  .group(() => {
+    router.get('/settings', [UsersController, 'settings'])
 
-router.get('/dashboard', [DashboardController, 'index']).as('dashboard.index')
-router.get('/dashboard/stats', [DashboardController, 'stats']).as('dashboard.stats')
+    router.get('/travels', [TravelsController, 'index'])
+    router.get('/travels/create', [TravelsController, 'create'])
+    router.get('/travels/:id/edit', [TravelsController, 'edit'])
+    router.get('/travels/template-export', [TravelTemplatesController, 'page'])
+
+    router.get('/dashboard', [DashboardController, 'index']).as('dashboard.index')
+    router.get('/dashboard/stats', [DashboardController, 'stats']).as('dashboard.stats')
+  })
+  .middleware([middleware.auth()])
