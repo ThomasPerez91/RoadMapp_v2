@@ -117,18 +117,17 @@ const TemplateExportTravels = () => {
 
   const canDownload = !!effectiveFrom && !!effectiveTo && hasData
 
-  const buildDownloadHref = (format: 'xlsx' | 'pdf'): string => {
+  const buildPdfHref = (): string => {
     if (!canDownload) return '#'
     const params = new URLSearchParams({
       from: effectiveFrom!,
       to: effectiveTo!,
       detailed: effectiveDetailed ? '1' : '0',
     })
-    return `/api/travels/template-export/${format}?${params.toString()}`
+    return `/api/travels/template-export/pdf?${params.toString()}`
   }
 
-  const xlsxHref = buildDownloadHref('xlsx')
-  const pdfHref = buildDownloadHref('pdf')
+  const pdfHref = buildPdfHref()
 
   const renderSummaryTable = (data: TravelTemplatePreview) => {
     const totalStepsLabel = data.totalSteps.toString()
@@ -315,7 +314,7 @@ const TemplateExportTravels = () => {
               <Title order={2}>Exporter mes trajets</Title>
               <Text size="sm" c="dimmed">
                 Choisissez une période, choisissez le niveau de détail, visualisez l’aperçu puis
-                téléchargez en PDF ou Excel.
+                téléchargez en PDF.
               </Text>
             </div>
 
@@ -473,7 +472,7 @@ const TemplateExportTravels = () => {
                         </strong>
                       </Text>
                       <Text size="sm" fw={600} c="gray.0">
-                        Total : {preview.totalSteps.toString()} étapes,{' '}
+                        Total : {preview.totalSteps} étapes,{' '}
                         {preview.totalKm.toLocaleString('fr-FR', {
                           minimumFractionDigits: 1,
                           maximumFractionDigits: 1,
@@ -493,16 +492,6 @@ const TemplateExportTravels = () => {
           </Paper>
 
           <Group justify="flex-end">
-            <Button
-              size="sm"
-              radius="md"
-              variant="light"
-              component="a"
-              href={xlsxHref}
-              disabled={!canDownload}
-            >
-              Télécharger en Excel
-            </Button>
             <Button size="sm" radius="md" component="a" href={pdfHref} disabled={!canDownload}>
               Télécharger en PDF
             </Button>

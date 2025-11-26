@@ -35,7 +35,6 @@ router
     router.delete('/travels/:id', [TravelsController, 'destroy'])
 
     router.get('/travels/template-export/preview', [TravelTemplatesController, 'preview'])
-    router.get('/travels/template-export/xlsx', [TravelTemplatesController, 'exportExcel'])
     router.get('/travels/template-export/pdf', [TravelTemplatesController, 'exportPdf'])
   })
   .prefix('/api')

@@ -1,95 +1,56 @@
 // app/controllers/travel_templates_controller.ts
 import type { HttpContext } from '@adonisjs/core/http'
-import {
-  buildTravelTemplate,
-  generateTravelTemplateExcel,
-  generateTravelTemplatePdf,
-} from '#services/travel_template'
+import { buildTravelTemplate, generateTravelTemplatePdf } from '#services/travel_template'
 
 export default class TravelTemplatesController {
-  async page({ inertia, auth }: HttpContext) {
-    await auth.check()
-    return inertia.render('travels/template_export', {})
+  public async page({ inertia }: HttpContext) {
+    return inertia.render('travels/template_export')
   }
 
-  private parseDetailed(request: HttpContext['request']): boolean {
-    const raw = request.input('detailed')
-    return raw === 'true' || raw === '1' || raw === 1 || raw === true
-  }
-
-  async preview({ request, auth, response }: HttpContext) {
-    await auth.check()
-    const user = auth.user!
-
-    const fromStr = request.input('from')
-    const toStr = request.input('to')
-    const detailed = this.parseDetailed(request)
-
-    if (!fromStr || !toStr) {
-      return response.badRequest({ message: 'Les paramètres from/to sont obligatoires' })
+  public async preview({ request, auth, response }: HttpContext) {
+    const user = auth.user
+    if (!user) {
+      return response.unauthorized()
     }
 
-    try {
-      const template = await buildTravelTemplate(user.id, fromStr, toStr, detailed)
-      return response.ok(template)
-    } catch {
-      return response.badRequest({
-        message: 'La période fournie est invalide.',
-      })
-    }
-  }
+    const { from, to, detailed } = request.qs()
 
-  async exportExcel({ request, auth, response }: HttpContext) {
-    await auth.check()
-    const user = auth.user!
-
-    const fromStr = request.input('from')
-    const toStr = request.input('to')
-    const detailed = this.parseDetailed(request)
-
-    if (!fromStr || !toStr) {
-      return response.badRequest({ message: 'Les paramètres from/to sont obligatoires' })
+    if (!from || !to) {
+      return response.badRequest({ message: 'Paramètres from/to manquants.' })
     }
 
-    const template = await buildTravelTemplate(user.id, fromStr, toStr, detailed)
-    const buffer = await generateTravelTemplateExcel(template, detailed)
-
-    response.header(
-      'Content-Disposition',
-      `attachment; filename="trajets_${template.from}_${template.to}${
-        detailed ? '_detail' : '_recap'
-      }.xlsx"`
-    )
-    response.header(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    const template = await buildTravelTemplate(
+      user.id,
+      String(from),
+      String(to),
+      String(detailed) === '1'
     )
 
-    return response.send(buffer)
+    return response.json(template)
   }
 
-  async exportPdf({ request, auth, response }: HttpContext) {
-    await auth.check()
-    const user = auth.user!
-
-    const fromStr = request.input('from')
-    const toStr = request.input('to')
-    const detailed = this.parseDetailed(request)
-
-    if (!fromStr || !toStr) {
-      return response.badRequest({ message: 'Les paramètres from/to sont obligatoires' })
+  public async exportPdf({ request, auth, response }: HttpContext) {
+    const user = auth.user
+    if (!user) {
+      return response.unauthorized()
     }
 
-    const template = await buildTravelTemplate(user.id, fromStr, toStr, detailed)
-    const buffer = await generateTravelTemplatePdf(template, detailed)
+    const { from, to, detailed } = request.qs()
 
-    response.header(
-      'Content-Disposition',
-      `attachment; filename="trajets_${template.from}_${template.to}${
-        detailed ? '_detail' : '_recap'
-      }.pdf"`
-    )
+    if (!from || !to) {
+      return response.badRequest('Paramètres from/to manquants.')
+    }
+
+    const detailedBool = String(detailed) === '1'
+
+    const template = await buildTravelTemplate(user.id, String(from), String(to), detailedBool)
+
+    const buffer = await generateTravelTemplatePdf(template, detailedBool)
+
+    const filename = `trajets_${from}_${to}${detailedBool ? '_detail' : ''}.pdf`
+
     response.header('Content-Type', 'application/pdf')
+    response.header('Content-Disposition', `attachment; filename="${filename}"`)
 
     return response.send(buffer)
   }
