@@ -19,7 +19,7 @@ export function ClickableBreadcrumbs({ items }: Props) {
             {item.label}
           </Anchor>
         ) : (
-          <span key={i}>{item.label}</span>
+          <span key={i}>{item.label} </span>
         )
       )}
     </Breadcrumbs>
