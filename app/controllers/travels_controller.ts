@@ -102,7 +102,7 @@ export default class TravelsController {
     await auth.check()
     const user = auth.user!
     const page = Number(request.input('page') || 1)
-    const perPage = 25
+    const perPage = 15
 
     const pagination = await Travel.query()
       .where('user_id', user.id)

@@ -1,4 +1,3 @@
-// inertia/components/generics/data_table.tsx
 import { useState } from 'react'
 import { Table, UnstyledButton, Group, ScrollArea, Text, Box, useMantineTheme } from '@mantine/core'
 import { TbArrowUp, TbArrowDown } from 'react-icons/tb'
@@ -51,6 +50,32 @@ export function DataTable<T>({
     }
   }
 
+  // colgroup partagé — dernière colonne = 80px
+  const ColGroup = () => (
+    <colgroup>
+      {columns.map((col, index) => (
+        <col
+          key={String(col.key)}
+          style={
+            index === columns.length - 1
+              ? { width: 80 } // dernière colonne forcée à 80px
+              : col.width
+                ? { width: col.width } // width personnalisée si fournie
+                : undefined
+          }
+        />
+      ))}
+    </colgroup>
+  )
+
+  // estimation hauteur d'une ligne : sert juste à décider si on fixe la hauteur ou pas
+  const ESTIMATED_ROW_HEIGHT = 56
+  const contentHeight = Math.max(sorted.length, 1) * ESTIMATED_ROW_HEIGHT
+  const needsScroll = contentHeight > maxHeight
+
+  // props conditionnels pour ScrollArea
+  const scrollAreaProps = needsScroll ? { h: maxHeight } : {}
+
   return (
     <Box
       style={{
@@ -60,84 +85,92 @@ export function DataTable<T>({
         overflow: 'hidden',
       }}
     >
-      <ScrollArea type="auto" mah={maxHeight}>
+      {/* HEADER FIXE */}
+      <Table
+        withTableBorder={false}
+        withColumnBorders={false}
+        horizontalSpacing="md"
+        verticalSpacing="sm"
+        style={{ minWidth, tableLayout: 'fixed', width: '100%' }}
+      >
+        <ColGroup />
+        <Table.Thead>
+          <Table.Tr
+            style={{
+              background: 'linear-gradient(90deg, rgba(15,25,40,0.98), rgba(10,18,32,0.98))',
+            }}
+          >
+            {columns.map((col) => {
+              const isSorted = sortKey === col.key
+              return (
+                <Table.Th
+                  key={String(col.key)}
+                  style={{
+                    textAlign: col.align ?? 'left',
+                    fontWeight: 600,
+                    fontSize: theme.fontSizes.xs,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.6,
+                    paddingTop: theme.spacing.sm,
+                    paddingBottom: theme.spacing.sm,
+                    color: 'rgba(255,255,255,0.7)',
+                    borderBottom: '1px solid rgba(255,255,255,0.08)',
+                  }}
+                >
+                  {col.sortFn ? (
+                    <UnstyledButton
+                      onClick={() => setSort(col.key)}
+                      style={{ width: '100%', paddingInline: 0 }}
+                    >
+                      <Group
+                        gap={4}
+                        wrap="nowrap"
+                        justify={
+                          col.align === 'right'
+                            ? 'flex-end'
+                            : col.align === 'center'
+                              ? 'center'
+                              : 'flex-start'
+                        }
+                      >
+                        <Text
+                          component="span"
+                          fz="xs"
+                          fw={600}
+                          style={{ opacity: isSorted ? 1 : 0.8 }}
+                        >
+                          {col.label}
+                        </Text>
+                        {isSorted &&
+                          (direction === 'asc' ? (
+                            <TbArrowUp size={12} />
+                          ) : (
+                            <TbArrowDown size={12} />
+                          ))}
+                      </Group>
+                    </UnstyledButton>
+                  ) : (
+                    <Text component="span" fz="xs" fw={600} style={{ opacity: 0.8 }}>
+                      {col.label}
+                    </Text>
+                  )}
+                </Table.Th>
+              )
+            })}
+          </Table.Tr>
+        </Table.Thead>
+      </Table>
+
+      {/* BODY SCROLLABLE (hauteur auto si peu de lignes, fixe sinon) */}
+      <ScrollArea type="auto" {...scrollAreaProps}>
         <Table
           withTableBorder={false}
           withColumnBorders={false}
           horizontalSpacing="md"
           verticalSpacing="sm"
-          style={{ minWidth }}
+          style={{ minWidth, tableLayout: 'fixed', width: '100%' }}
         >
-          <Table.Thead>
-            <Table.Tr
-              style={{
-                background: 'linear-gradient(90deg, rgba(15,25,40,0.98), rgba(10,18,32,0.98))',
-              }}
-            >
-              {columns.map((col) => {
-                const isSorted = sortKey === col.key
-                return (
-                  <Table.Th
-                    key={String(col.key)}
-                    style={{
-                      position: 'sticky',
-                      top: 0,
-                      zIndex: 2,
-                      textAlign: col.align ?? 'left',
-                      fontWeight: 600,
-                      fontSize: theme.fontSizes.xs,
-                      textTransform: 'uppercase',
-                      letterSpacing: 0.6,
-                      paddingTop: theme.spacing.sm,
-                      paddingBottom: theme.spacing.sm,
-                      width: col.width,
-                      color: 'rgba(255,255,255,0.7)',
-                      borderBottom: '1px solid rgba(255,255,255,0.08)',
-                    }}
-                  >
-                    {col.sortFn ? (
-                      <UnstyledButton
-                        onClick={() => setSort(col.key)}
-                        style={{ width: '100%', paddingInline: 0 }}
-                      >
-                        <Group
-                          gap={4}
-                          wrap="nowrap"
-                          justify={
-                            col.align === 'right'
-                              ? 'flex-end'
-                              : col.align === 'center'
-                                ? 'center'
-                                : 'flex-start'
-                          }
-                        >
-                          <Text
-                            component="span"
-                            fz="xs"
-                            fw={600}
-                            style={{ opacity: isSorted ? 1 : 0.8 }}
-                          >
-                            {col.label}
-                          </Text>
-                          {isSorted &&
-                            (direction === 'asc' ? (
-                              <TbArrowUp size={12} />
-                            ) : (
-                              <TbArrowDown size={12} />
-                            ))}
-                        </Group>
-                      </UnstyledButton>
-                    ) : (
-                      <Text component="span" fz="xs" fw={600} style={{ opacity: 0.8 }}>
-                        {col.label}
-                      </Text>
-                    )}
-                  </Table.Th>
-                )
-              })}
-            </Table.Tr>
-          </Table.Thead>
-
+          <ColGroup />
           <Table.Tbody>
             {sorted.length === 0 ? (
               <Table.Tr>
@@ -163,8 +196,8 @@ export function DataTable<T>({
                         'background 120ms ease, transform 80ms ease, box-shadow 120ms ease',
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(60, 64, 72, 0.9)' // row highlight gris chaud
-                      e.currentTarget.style.boxShadow = '0 0 0 1px rgba(56,189,248,0.35)' // léger halo bleu comme tes boutons
+                      e.currentTarget.style.background = 'rgba(60, 64, 72, 0.9)'
+                      e.currentTarget.style.boxShadow = '0 0 0 1px rgba(56,189,248,0.35)'
                       e.currentTarget.style.transform = 'translateY(-1px)'
                     }}
                     onMouseLeave={(e) => {
@@ -177,7 +210,7 @@ export function DataTable<T>({
                       <Table.Td
                         key={String(col.key)}
                         style={{
-                          textAlign: col.align ?? 'left',
+                          textAlign: 'left',
                           fontSize: theme.fontSizes.sm,
                           color: 'rgba(255,255,255,0.9)',
                           whiteSpace: 'nowrap',

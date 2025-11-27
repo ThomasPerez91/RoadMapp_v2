@@ -94,10 +94,12 @@ function Index({ travels, meta }: IndexProps) {
       <Head title="Trajets" />
       <FlashMessages flash={flash} />
       <Container py="lg">
-        <BackButton href="/dashboard" />
-        <ClickableBreadcrumbs
-          items={[{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Trajets' }]}
-        />
+        <Group mb="md" align="center" gap="xs">
+          <BackButton href="/dashboard" />
+          <ClickableBreadcrumbs
+            items={[{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Trajets' }]}
+          />
+        </Group>
         <Group justify="space-between" mb="md" align="center">
           <Group gap="xs" align="center">
             <Title order={2}>Trajets</Title>

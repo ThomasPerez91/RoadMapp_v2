@@ -301,11 +301,7 @@ const TemplateExportTravels = () => {
           <Group gap="sm">
             <BackButton href="/travels" />
             <ClickableBreadcrumbs
-              items={[
-                { label: 'Tableau de bord', href: '/dashboard' },
-                { label: 'Trajets', href: '/travels' },
-                { label: 'Export avec template' },
-              ]}
+              items={[{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Export en PDF' }]}
             />
           </Group>
 

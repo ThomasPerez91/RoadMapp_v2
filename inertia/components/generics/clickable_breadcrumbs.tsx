@@ -19,7 +19,9 @@ export function ClickableBreadcrumbs({ items }: Props) {
             {item.label}
           </Anchor>
         ) : (
-          <span key={i}>{item.label} </span>
+          <Anchor key={i} component={Link} href="" size="sm">
+            {item.label}
+          </Anchor>
         )
       )}
     </Breadcrumbs>

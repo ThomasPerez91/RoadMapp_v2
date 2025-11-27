@@ -22,7 +22,7 @@ const UserLayout = ({ children }: PropsWithChildren) => (
             minHeight: '100vh',
             display: 'flex',
             justifyContent: 'center',
-            paddingTop: rem(60),
+            paddingTop: rem(32),
           }}
         >
           <Box
