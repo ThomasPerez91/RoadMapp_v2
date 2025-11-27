@@ -238,7 +238,7 @@ function buildChartData(travels: Travel[], now: DateTime): DashboardChartData {
  * Récupère les X derniers trajets d'un utilisateur (avec les adresses de départ/arrivée)
  * pour alimenter la timeline du dashboard.
  */
-async function buildRecentTravels(userId: number, limit = 10): Promise<DashboardTravelItem[]> {
+async function buildRecentTravels(userId: number, limit = 5): Promise<DashboardTravelItem[]> {
   const travels = await Travel.query()
     .where('user_id', userId)
     .orderBy('date', 'desc')

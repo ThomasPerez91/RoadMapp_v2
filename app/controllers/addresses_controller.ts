@@ -14,7 +14,7 @@ export default class AddressesController {
     const page = Number(request.input('page', 1))
     const status = request.input('status', 'active') as 'active' | 'archived'
 
-    const query = Address.query().where('userId', user.id).andWhere('isHome', false) // 👉 on exclut l’adresse de départ
+    const query = Address.query().where('userId', user.id).andWhere('isHome', false)
 
     if (status === 'active') {
       query.where('isActive', true)
@@ -22,7 +22,7 @@ export default class AddressesController {
       query.where('isActive', false)
     }
 
-    const addresses = await query.orderBy('name', 'asc').paginate(page, 25)
+    const addresses = await query.orderBy('name', 'asc').paginate(page, 10)
     const { data, meta } = addresses.toJSON()
     const addressesDto = (data as any[]).map((item) => addressToDto(item as Address))
 
