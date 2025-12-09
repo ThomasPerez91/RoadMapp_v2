@@ -50,7 +50,7 @@ function Create({ addresses }: Props) {
               items={[
                 { label: 'Tableau de bord', href: '/dashboard' },
                 { label: 'Trajets', href: '/travels' },
-                { label: 'Créer un trajet' },
+                { label: 'Créer un trajet', href: '/travels/create' },
               ]}
             />
           </Group>

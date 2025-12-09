@@ -80,7 +80,7 @@ function Edit({ travel, picksIds, addresses }: Props) {
               items={[
                 { label: 'Tableau de bord', href: '/dashboard' },
                 { label: 'Trajets', href: '/travels' },
-                { label: 'Modifier' },
+                { label: 'Modifier', href: `/travels/edit/${travel.id}` },
               ]}
             />
           </Group>

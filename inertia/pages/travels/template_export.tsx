@@ -1,4 +1,3 @@
-// inertia/pages/travels/template_export.tsx
 import { Head } from '@inertiajs/react'
 import {
   Box,
@@ -301,7 +300,10 @@ const TemplateExportTravels = () => {
           <Group gap="sm">
             <BackButton href="/travels" />
             <ClickableBreadcrumbs
-              items={[{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Export en PDF' }]}
+              items={[
+                { label: 'Tableau de bord', href: '/dashboard' },
+                { label: 'Export en PDF', href: '/travels/template-export' },
+              ]}
             />
           </Group>
 
@@ -314,7 +316,7 @@ const TemplateExportTravels = () => {
               </Text>
             </div>
 
-            <Stack gap={4}>
+            <Stack gap={12}>
               <DatePickerInput
                 type="range"
                 valueFormat="DD MMM YYYY"
@@ -344,15 +346,15 @@ const TemplateExportTravels = () => {
                     color: '#e5e7eb',
                   },
                   day: {
-                    '&[data-selected]': {
+                    '&[dataSelected]': {
                       background:
                         'linear-gradient(135deg, rgba(56,189,248,.8), rgba(129,140,248,.9))',
                       color: 'white',
                     },
-                    '&[data-in-range]': {
+                    '&[dataInRange]': {
                       background: 'rgba(56,189,248,.15)',
                     },
-                    '&[data-weekend]': {
+                    '&[dataWeekend]': {
                       color: '#f97373',
                     },
                   },
@@ -372,7 +374,7 @@ const TemplateExportTravels = () => {
                 onChange={(event) => setDetailed(event.currentTarget.checked)}
                 label={
                   <Text size="sm" c="ocean.4">
-                    Afficher le détail des étapes
+                    Afficher les étapes
                   </Text>
                 }
                 size="sm"
@@ -392,6 +394,12 @@ const TemplateExportTravels = () => {
                 }}
               />
             </Stack>
+          </Group>
+
+          <Group justify="flex-end">
+            <Button size="sm" radius="md" component="a" href={pdfHref} disabled={!canDownload}>
+              Télécharger en PDF
+            </Button>
           </Group>
 
           {/* PREVIEW PDF-LIKE */}

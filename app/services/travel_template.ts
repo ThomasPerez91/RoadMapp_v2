@@ -150,11 +150,6 @@ export async function buildTravelTemplate(
   }
 }
 
-/**
- * PDF
- * detailed = false → tableau récap seul
- * detailed = true  → tableau détaillé + totaux par mois + total période
- */
 export async function generateTravelTemplatePdf(
   template: TravelTemplate,
   detailed: boolean
@@ -176,12 +171,7 @@ export async function generateTravelTemplatePdf(
     const headerBg = '#e5e7eb'
     const totalBg = '#374151'
     const pageBottom = doc.page.height - 60
-
-    const ensurePage = (extraHeight: number) => {
-      if (doc.y + extraHeight + 40 > pageBottom) {
-        doc.addPage()
-      }
-    }
+    const TABLE_TOP = 140 // hauteur de départ d'un tableau sur une nouvelle page
 
     // helper pour centrer verticalement un texte dans une cellule
     function drawCell(
@@ -220,7 +210,7 @@ export async function generateTravelTemplatePdf(
       } else if (fs.existsSync(logoSvg)) {
         try {
           // @ts-ignore pdfkit & svg
-          doc.image(logoSvg, leftMargin, 40, { width: 80 })
+          doc.image(logoSvg, logoSvg, 40, { width: 80 })
         } catch {
           /* ignore si svg non supporté */
         }
@@ -256,29 +246,41 @@ export async function generateTravelTemplatePdf(
       const totalWidth = colWidths.reduce((s, w) => s + w, 0)
       const startX = leftMargin + (usableWidth - totalWidth) / 2
 
-      let y = doc.y
+      let y = doc.y // position de départ
 
-      // header
-      ensurePage(24)
-      doc.save()
-      doc.rect(startX, y, totalWidth, 24).fill(headerBg)
-      doc.restore()
+      const drawHeader = () => {
+        doc.save()
+        doc.rect(startX, y, totalWidth, 24).fill(headerBg)
+        doc.restore()
 
-      doc.fontSize(10)
-      let x = startX
-      headers.forEach((h, i) => {
-        const w = colWidths[i]
-        doc.rect(x, y, w, 24).stroke()
-        drawCell(h, x, y, w, 24, 'center', true)
-        x += w
-      })
+        doc.fontSize(10)
+        let x = startX
+        headers.forEach((h, i) => {
+          const w = colWidths[i]
+          doc.rect(x, y, w, 24).stroke()
+          drawCell(h, x, y, w, 24, 'center', true)
+          x += w
+        })
+        y += 24
+      }
 
-      y += 24
+      const ensureSpace = (rowHeight: number) => {
+        if (y + rowHeight + 40 > pageBottom) {
+          doc.addPage()
+          y = TABLE_TOP
+          drawHeader()
+        }
+      }
+
+      // premier header
+      drawHeader()
 
       // lignes
       for (const row of template.rows) {
-        ensurePage(18)
-        x = startX
+        const rowHeight = 18
+        ensureSpace(rowHeight)
+
+        let x = startX
         const cells = [
           formatDateFr(row.date),
           String(Number(row.stepsCount ?? 0)),
@@ -287,23 +289,24 @@ export async function generateTravelTemplatePdf(
 
         cells.forEach((c, i) => {
           const w = colWidths[i]
-          doc.rect(x, y, w, 18).stroke()
-          drawCell(c, x, y, w, 18, 'center', false)
+          doc.rect(x, y, w, rowHeight).stroke()
+          drawCell(c, x, y, w, rowHeight, 'center', false)
           x += w
         })
 
-        y += 18
+        y += rowHeight
       }
 
       // TOTAL global
-      ensurePage(20)
-      x = startX
+      const totalRowHeight = 20
+      ensureSpace(totalRowHeight)
 
+      let x = startX
       const totalStepsLabel = String(Number(template.totalSteps))
       const totalKmLabel = formatKmLabel(template.totalKm)
 
       doc.save()
-      doc.rect(startX, y, totalWidth, 20).fill(totalBg)
+      doc.rect(startX, y, totalWidth, totalRowHeight).fill(totalBg)
       doc.restore()
 
       doc.fillColor('white')
@@ -311,8 +314,8 @@ export async function generateTravelTemplatePdf(
       const totalCells = ['TOTAL', totalStepsLabel, totalKmLabel]
       totalCells.forEach((c, i) => {
         const w = colWidths[i]
-        doc.rect(x, y, w, 20).stroke()
-        drawCell(c, x, y, w, 20, 'center', true)
+        doc.rect(x, y, w, totalRowHeight).stroke()
+        drawCell(c, x, y, w, totalRowHeight, 'center', true)
         x += w
       })
 
@@ -329,21 +332,32 @@ export async function generateTravelTemplatePdf(
 
       let y = doc.y
 
-      // header
-      ensurePage(24)
-      doc.save()
-      doc.rect(startX, y, totalWidth, 24).fill(headerBg)
-      doc.restore()
+      const drawHeader = () => {
+        doc.save()
+        doc.rect(startX, y, totalWidth, 24).fill(headerBg)
+        doc.restore()
 
-      doc.fontSize(10)
-      let x = startX
-      headers.forEach((h, i) => {
-        const w = colWidths[i]
-        doc.rect(x, y, w, 24).stroke()
-        drawCell(h, x, y, w, 24, 'center', true)
-        x += w
-      })
-      y += 24
+        doc.fontSize(10)
+        let x = startX
+        headers.forEach((h, i) => {
+          const w = colWidths[i]
+          doc.rect(x, y, w, 24).stroke()
+          drawCell(h, x, y, w, 24, 'center', true)
+          x += w
+        })
+        y += 24
+      }
+
+      const ensureSpace = (rowHeight: number) => {
+        if (y + rowHeight + 40 > pageBottom) {
+          doc.addPage()
+          y = TABLE_TOP
+          drawHeader()
+        }
+      }
+
+      // premier header
+      drawHeader()
 
       // stats par mois
       const monthStats = new Map<string, { label: string; steps: number; km: number }>()
@@ -367,9 +381,10 @@ export async function generateTravelTemplatePdf(
         monthStats.set(monthKey, stat)
 
         // ligne principale
-        ensurePage(18)
-        x = startX
+        const mainRowHeight = 18
+        ensureSpace(mainRowHeight)
 
+        let x = startX
         const mainCells = [
           formatDateFr(row.date),
           String(row.stepsCount ?? 0),
@@ -380,14 +395,14 @@ export async function generateTravelTemplatePdf(
 
         mainCells.forEach((c, i) => {
           const w = colWidths[i]
-          doc.rect(x, y, w, 18).stroke()
+          doc.rect(x, y, w, mainRowHeight).stroke()
           if (i <= 2) {
-            drawCell(c, x, y, w, 18, 'center', true)
+            drawCell(c, x, y, w, mainRowHeight, 'center', true)
           }
           x += w
         })
 
-        y += 18
+        y += mainRowHeight
 
         // lignes d'étapes
         if (row.legs && row.legs.length) {
@@ -402,9 +417,9 @@ export async function generateTravelTemplatePdf(
             })
             const rowHeight = Math.max(18, fromHeight, toHeight) + 4 * padding
 
-            ensurePage(rowHeight)
-            x = startX
+            ensureSpace(rowHeight)
 
+            x = startX
             const cells = [
               '',
               String(idx + 1),
@@ -429,12 +444,12 @@ export async function generateTravelTemplatePdf(
         }
 
         // ligne de séparation
-        ensurePage(10)
-        doc.rect(startX, y, totalWidth, 10).stroke()
-        y += 10
+        const sepHeight = 10
+        ensureSpace(sepHeight)
+        doc.rect(startX, y, totalWidth, sepHeight).stroke()
+        y += sepHeight
       }
 
-      // un peu d'air avant le bloc des totaux
       doc.moveDown(2)
 
       // -------- TOTAUX PAR MOIS --------
@@ -445,51 +460,63 @@ export async function generateTravelTemplatePdf(
         const recapStartX = leftMargin + (usableWidth - recapTotalWidth) / 2
         let ry = doc.y
 
-        ensurePage(24)
-        doc.save()
-        doc.rect(recapStartX, ry, recapTotalWidth, 24).fill(headerBg)
-        doc.restore()
+        const drawRecapHeader = () => {
+          doc.save()
+          doc.rect(recapStartX, ry, recapTotalWidth, 24).fill(headerBg)
+          doc.restore()
 
-        doc.fontSize(10)
-        let rx = recapStartX
-        recapHeaders.forEach((h, i) => {
-          const w = recapColWidths[i]
-          doc.rect(rx, ry, w, 24).stroke()
-          drawCell(h, rx, ry, w, 24, 'center', true)
-          rx += w
-        })
-        ry += 24
+          doc.fontSize(10)
+          let rx = recapStartX
+          recapHeaders.forEach((h, i) => {
+            const w = recapColWidths[i]
+            doc.rect(rx, ry, w, 24).stroke()
+            drawCell(h, rx, ry, w, 24, 'center', true)
+            rx += w
+          })
+          ry += 24
+        }
 
-        // TRI CHRONO sur la clé YYYY-MM
+        const ensureRecapSpace = (rowHeight: number) => {
+          if (ry + rowHeight + 40 > pageBottom) {
+            doc.addPage()
+            ry = TABLE_TOP
+            drawRecapHeader()
+          }
+        }
+
+        drawRecapHeader()
+
         const sortedMonths = Array.from(monthStats.entries())
           .sort((a, b) => a[0].localeCompare(b[0]))
           .map(([, value]) => value)
 
         for (const m of sortedMonths) {
-          ensurePage(18)
-          rx = recapStartX
+          const rowHeight = 18
+          ensureRecapSpace(rowHeight)
+          let rx = recapStartX
 
           const cells = [m.label, String(Number(m.steps)), formatKmLabel(m.km)]
 
           cells.forEach((c, i) => {
             const w = recapColWidths[i]
-            doc.rect(rx, ry, w, 18).stroke()
-            drawCell(c, rx, ry, w, 18, 'center', false)
+            doc.rect(rx, ry, w, rowHeight).stroke()
+            drawCell(c, rx, ry, w, rowHeight, 'center', false)
             rx += w
           })
 
-          ry += 18
+          ry += rowHeight
         }
 
         // TOTAL PÉRIODE
-        ensurePage(20)
-        rx = recapStartX
+        const totalRowHeight = 20
+        ensureRecapSpace(totalRowHeight)
+        let rx = recapStartX
 
         const totalStepsLabel = String(Number(template.totalSteps))
         const totalKmLabel = formatKmLabel(template.totalKm)
 
         doc.save()
-        doc.rect(recapStartX, ry, recapTotalWidth, 20).fill(totalBg)
+        doc.rect(recapStartX, ry, recapTotalWidth, totalRowHeight).fill(totalBg)
         doc.restore()
 
         doc.fillColor('white')
@@ -497,8 +524,8 @@ export async function generateTravelTemplatePdf(
         const totalCells = ['TOTAL PÉRIODE', totalStepsLabel, totalKmLabel]
         totalCells.forEach((c, i) => {
           const w = recapColWidths[i]
-          doc.rect(rx, ry, w, 20).stroke()
-          drawCell(c, rx, ry, w, 20, 'center', true)
+          doc.rect(rx, ry, w, totalRowHeight).stroke()
+          drawCell(c, rx, ry, w, totalRowHeight, 'center', true)
           rx += w
         })
 
