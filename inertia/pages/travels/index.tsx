@@ -97,7 +97,10 @@ function Index({ travels, meta }: IndexProps) {
         <Group mb="md" align="center" gap="xs">
           <BackButton href="/dashboard" />
           <ClickableBreadcrumbs
-            items={[{ label: 'Tableau de bord', href: '/dashboard' }, { label: 'Trajets' }]}
+            items={[
+              { label: 'Tableau de bord', href: '/dashboard' },
+              { label: 'Trajets', href: '/travels' },
+            ]}
           />
         </Group>
         <Group justify="space-between" mb="md" align="center">

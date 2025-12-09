@@ -181,7 +181,7 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
             <ClickableBreadcrumbs
               items={[
                 { label: 'Tableau de bord', href: '/dashboard' },
-                { label: 'Carnet d’adresses' },
+                { label: 'Carnet d’adresses', href: '/addresses' },
               ]}
             />
           </Group>
