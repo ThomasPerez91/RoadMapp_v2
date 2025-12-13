@@ -15,7 +15,8 @@ import {
   Divider,
 } from '@mantine/core'
 import { useMediaQuery, useDebouncedValue } from '@mantine/hooks'
-import { TbMapPin, TbArchive } from 'react-icons/tb'
+import { TbArchive } from 'react-icons/tb'
+import { LuMapPinPlus } from 'react-icons/lu'
 import { useState, useEffect, useMemo } from 'react'
 import { DataTable } from '~/components/generics/data_table'
 import UserLayout from '~/layouts/user_layout'
@@ -206,7 +207,7 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
                   variant="gradient"
                   gradient={{ from: 'ocean', to: 'plum', deg: 60 }}
                   onClick={openCreate}
-                  leftSection={<TbMapPin size={16} />}
+                  leftSection={<LuMapPinPlus size={16} />}
                 >
                   Ajouter une adresse
                 </Button>
@@ -250,9 +251,6 @@ function Index({ addresses, meta, status: initialStatus = 'active' }: IndexProps
                       <Group gap="xs" mt="xs">
                         <Badge color={row.isActive ? 'ocean' : 'red'} variant="filled">
                           {row.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                        <Badge color={row.checked ? 'ocean' : 'red'} variant="light">
-                          {row.checked ? 'Checked' : 'Failed'}
                         </Badge>
                       </Group>
                     </div>

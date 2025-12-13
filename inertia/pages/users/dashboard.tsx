@@ -11,10 +11,12 @@ import {
   Text,
   Title,
   rem,
+  useMantineTheme,
 } from '@mantine/core'
 import { DatePickerInput } from '@mantine/dates'
 import { BarChart } from '@mantine/charts'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useMediaQuery } from '@mantine/hooks'
 import { TbArrowRight, TbCalendarTime, TbMapPin2, TbRoute, TbTimeline } from 'react-icons/tb'
 import { LuMapPin } from 'react-icons/lu'
 import UserLayout from '~/layouts/user_layout'
@@ -126,7 +128,7 @@ function Dashboard({ summary, chart, recentTravels }: DashboardProps) {
 
       <Container size="lg" py="sm">
         <Stack gap="lg">
-          <Group justify="space-between" align="flex-start">
+          <Group justify="space-between" align="flex-start" wrap="wrap">
             <Stack gap={4}>
               <Title order={2}>Bonjour, {user.user?.name}</Title>
               <Text size="sm" c="dimmed">
@@ -137,14 +139,9 @@ function Dashboard({ summary, chart, recentTravels }: DashboardProps) {
             <DashboardHeaderStats summary={summary} />
           </Group>
 
-          {/* Timeline & Graph */}
+          {/* Graph & Timeline (graph en premier) */}
           <Grid gutter="lg">
-            {/* Légèrement plus petit */}
-            <Grid.Col span={{ base: 12, md: 5 }}>
-              <DashboardTimeline travels={recentTravels} />
-            </Grid.Col>
-
-            {/* Légèrement plus grand */}
+            {/* Graph plus large */}
             <Grid.Col span={{ base: 12, md: 7 }}>
               <DashboardDistanceChartCard
                 period={period}
@@ -154,6 +151,11 @@ function Dashboard({ summary, chart, recentTravels }: DashboardProps) {
                 data={chartData}
                 isCustomLoading={customLoading}
               />
+            </Grid.Col>
+
+            {/* Derniers trajets */}
+            <Grid.Col span={{ base: 12, md: 5 }}>
+              <DashboardTimeline travels={recentTravels} />
             </Grid.Col>
           </Grid>
         </Stack>
@@ -176,6 +178,9 @@ interface DashboardHeaderStatsProps {
 }
 
 function DashboardHeaderStats({ summary }: DashboardHeaderStatsProps) {
+  const theme = useMantineTheme()
+  const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`, false)
+
   const averageDistance =
     summary.travelsThisMonth > 0
       ? Math.round((summary.distanceThisMonthKm / summary.travelsThisMonth) * 10) / 10
@@ -187,31 +192,57 @@ function DashboardHeaderStats({ summary }: DashboardHeaderStatsProps) {
       radius="xl"
       p="sm"
       style={{
-        minWidth: 460,
+        minWidth: isMobile ? '100%' : 460,
         maxWidth: '100%',
       }}
     >
-      <Group gap="lg" justify="space-between">
-        <MiniStat
-          label="Distance ce mois-ci"
-          value={`${summary.distanceThisMonthKm.toLocaleString('fr-FR')} km`}
-          icon={<TbTimeline size={16} />}
-        />
-        <MiniStat
-          label="Trajets ce mois-ci"
-          value={
-            summary.travelsThisMonth > 0
-              ? `${summary.travelsThisMonth} (${averageDistance} km / trajet)`
-              : 'Aucun'
-          }
-          icon={<TbRoute size={16} />}
-        />
-        <MiniStat
-          label="Distance cette année"
-          value={`${summary.distanceThisYearKm.toLocaleString('fr-FR')} km`}
-          icon={<TbCalendarTime size={16} />}
-        />
-      </Group>
+      {isMobile ? (
+        // Mobile : les 3 stats en colonne, bien lisibles
+        <Stack gap="sm">
+          <MiniStat
+            label="Distance ce mois-ci"
+            value={`${summary.distanceThisMonthKm.toLocaleString('fr-FR')} km`}
+            icon={<TbTimeline size={16} />}
+          />
+          <MiniStat
+            label="Trajets ce mois-ci"
+            value={
+              summary.travelsThisMonth > 0
+                ? `${summary.travelsThisMonth} (${averageDistance} km / trajet)`
+                : 'Aucun'
+            }
+            icon={<TbRoute size={16} />}
+          />
+          <MiniStat
+            label="Distance cette année"
+            value={`${summary.distanceThisYearKm.toLocaleString('fr-FR')} km`}
+            icon={<TbCalendarTime size={16} />}
+          />
+        </Stack>
+      ) : (
+        // Desktop : aligné sur une ligne
+        <Group gap="lg" justify="space-between">
+          <MiniStat
+            label="Distance ce mois-ci"
+            value={`${summary.distanceThisMonthKm.toLocaleString('fr-FR')} km`}
+            icon={<TbTimeline size={16} />}
+          />
+          <MiniStat
+            label="Trajets ce mois-ci"
+            value={
+              summary.travelsThisMonth > 0
+                ? `${summary.travelsThisMonth} (${averageDistance} km / trajet)`
+                : 'Aucun'
+            }
+            icon={<TbRoute size={16} />}
+          />
+          <MiniStat
+            label="Distance cette année"
+            value={`${summary.distanceThisYearKm.toLocaleString('fr-FR')} km`}
+            icon={<TbCalendarTime size={16} />}
+          />
+        </Group>
+      )}
     </Paper>
   )
 }
@@ -224,7 +255,7 @@ interface MiniStatProps {
 
 function MiniStat({ label, value, icon }: MiniStatProps) {
   return (
-    <Group gap="xs" align="center">
+    <Group gap="xs" align="center" wrap="nowrap">
       {icon && (
         <Box
           style={{
@@ -238,6 +269,7 @@ function MiniStat({ label, value, icon }: MiniStatProps) {
               'radial-gradient(circle at 30% 0%, rgba(120,220,255,0.95), rgba(8,30,46,1))',
             boxShadow:
               '0 0 0 1px rgba(255,255,255,0.06), 0 6px 14px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.25)',
+            flexShrink: 0,
           }}
         >
           {icon}

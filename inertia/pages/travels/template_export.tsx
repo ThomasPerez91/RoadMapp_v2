@@ -1,3 +1,4 @@
+// inertia/pages/travels/template_export.tsx
 import { Head } from '@inertiajs/react'
 import {
   Box,
@@ -11,9 +12,11 @@ import {
   Table,
   Text,
   Title,
+  useMantineTheme,
 } from '@mantine/core'
 import { DatePickerInput } from '@mantine/dates'
 import React, { useEffect, useState } from 'react'
+import { useMediaQuery } from '@mantine/hooks'
 import UserLayout from '~/layouts/user_layout'
 import { BackButton } from '~/components/generics/back_buttons'
 import { ClickableBreadcrumbs } from '~/components/generics/clickable_breadcrumbs'
@@ -45,6 +48,9 @@ interface TravelTemplatePreview {
 }
 
 const TemplateExportTravels = () => {
+  const theme = useMantineTheme()
+  const isMobile = useMediaQuery(`(max-width: ${theme.breakpoints.sm})`, false)
+
   const [range, setRange] = useState<DateRange>([null, null])
   const [detailed, setDetailed] = useState(false)
   const [preview, setPreview] = useState<TravelTemplatePreview | null>(null)
@@ -146,7 +152,7 @@ const TemplateExportTravels = () => {
             </Table.Th>
             <Table.Th style={{ backgroundColor: '#020617' }}>
               <Text size="xs" fw={700} c="gray.0">
-                ETAPES
+                ÉTAPES
               </Text>
             </Table.Th>
             <Table.Th style={{ backgroundColor: '#020617' }}>
@@ -215,7 +221,7 @@ const TemplateExportTravels = () => {
             </Table.Th>
             <Table.Th style={{ backgroundColor: '#020617' }}>
               <Text size="xs" fw={700} c="gray.0">
-                ETAPES
+                ÉTAPES
               </Text>
             </Table.Th>
             <Table.Th style={{ backgroundColor: '#020617' }}>
@@ -297,6 +303,7 @@ const TemplateExportTravels = () => {
 
       <Container size="lg" py="xl">
         <Stack gap="lg">
+          {/* Breadcrumbs */}
           <Group gap="sm">
             <BackButton href="/travels" />
             <ClickableBreadcrumbs
@@ -307,199 +314,227 @@ const TemplateExportTravels = () => {
             />
           </Group>
 
-          <Group justify="space-between" align="flex-end" wrap="wrap">
-            <div>
-              <Title order={2}>Exporter mes trajets</Title>
-              <Text size="sm" c="dimmed">
-                Choisissez une période, choisissez le niveau de détail, visualisez l’aperçu puis
-                téléchargez en PDF.
-              </Text>
-            </div>
-
-            <Stack gap={12}>
-              <DatePickerInput
-                type="range"
-                valueFormat="DD MMM YYYY"
-                value={range}
-                onChange={(value) => setRange(value as DateRange)}
-                placeholder="Sélectionner une période"
-                size="sm"
-                radius="md"
-                defaultLevel="year"
-                popoverProps={{
-                  withinPortal: true,
-                  shadow: 'xl',
-                  radius: 'lg',
-                  styles: {
-                    dropdown: {
-                      background: 'linear-gradient(145deg, rgba(7,14,24,.98), rgba(15,23,42,.96))',
-                      border: '1px solid rgba(148,163,184,.45)',
-                    },
-                  },
-                }}
-                styles={{
-                  input: {
-                    background: 'rgba(15,23,42,.9)',
-                    borderColor: 'rgba(56,189,248,.6)',
-                    borderWidth: 1,
-                    borderStyle: 'solid',
-                    color: '#e5e7eb',
-                  },
-                  day: {
-                    '&[dataSelected]': {
-                      background:
-                        'linear-gradient(135deg, rgba(56,189,248,.8), rgba(129,140,248,.9))',
-                      color: 'white',
-                    },
-                    '&[dataInRange]': {
-                      background: 'rgba(56,189,248,.15)',
-                    },
-                    '&[dataWeekend]': {
-                      color: '#f97373',
-                    },
-                  },
-                  weekday: {
-                    color: '#9ca3af',
-                    fontWeight: 500,
-                  },
-                  month: {
-                    color: '#e5e7eb',
-                    fontWeight: 600,
-                  },
-                }}
-              />
-
-              <Checkbox
-                checked={detailed}
-                onChange={(event) => setDetailed(event.currentTarget.checked)}
-                label={
-                  <Text size="sm" c="ocean.4">
-                    Afficher les étapes
-                  </Text>
-                }
-                size="sm"
-                styles={{
-                  input: {
-                    background: 'rgba(15,23,42,.9)',
-                    borderColor: 'rgba(56,189,248,.6)',
-                    borderWidth: 1,
-                    borderStyle: 'solid',
-                  },
-                  icon: {
-                    color: '#0ea5e9',
-                  },
-                  label: {
-                    color: '#e5e7eb',
-                  },
-                }}
-              />
-            </Stack>
-          </Group>
-
-          <Group justify="flex-end">
-            <Button size="sm" radius="md" component="a" href={pdfHref} disabled={!canDownload}>
-              Télécharger en PDF
-            </Button>
-          </Group>
-
-          {/* PREVIEW PDF-LIKE */}
+          {/* Header + filtres */}
           <Paper
             withBorder
-            radius="lg"
+            radius="xl"
             p="lg"
-            bg="#020617"
-            styles={{
-              root: {
-                borderColor: 'rgba(148,163,184,0.45)',
-              },
+            style={{
+              background: 'rgba(7,14,24,0.85)',
+              borderColor: 'rgba(148,163,184,0.35)',
             }}
           >
             <Stack gap="md">
-              {error && (
-                <Text size="sm" c="red.4">
-                  {error}
-                </Text>
-              )}
+              <Group
+                justify="space-between"
+                align={isMobile ? 'flex-start' : 'flex-end'}
+                wrap="wrap"
+                gap="md"
+              >
+                <Stack gap={4} style={{ maxWidth: 520 }}>
+                  <Title order={2}>Exporter mes trajets</Title>
+                  <Text size="sm" c="dimmed">
+                    Choisissez une période, le niveau de détail, puis téléchargez votre document PDF
+                    prêt à être transmis.
+                  </Text>
+                </Stack>
 
-              {!error && !hasData && !loading && (
-                <Text size="sm" c="gray.3" ta="center">
-                  Aucun trajet à afficher pour le moment. Sélectionnez une période pour générer
-                  l’aperçu.
-                </Text>
-              )}
-
-              {!error && loading && (
-                <Text size="sm" c="gray.3" ta="center">
-                  Mise à jour de l’aperçu...
-                </Text>
-              )}
-
-              {hasData && preview && (
-                <Paper
-                  shadow="sm"
-                  radius="md"
-                  p="xl"
-                  withBorder
-                  bg="#020617"
-                  styles={{
-                    root: {
-                      borderColor: 'rgba(148,163,184,0.45)',
-                    },
+                <Stack
+                  gap={10}
+                  style={{
+                    width: isMobile ? '100%' : 320,
                   }}
                 >
-                  <Stack gap="md">
-                    {/* logo + titres */}
-                    <Box ta="center">
-                      <img
-                        src="/logo.svg"
-                        alt="RoadMapp"
-                        style={{ height: 60, marginBottom: 16 }}
-                      />
-                      <Text fw={700} size="xl" c="gray.0">
-                        ROADMAPP
-                      </Text>
-                      <Text fw={700} size="sm" mt={4} c="gray.0">
-                        HISTORIQUE DES TRAJETS DU
-                      </Text>
-                      <Text size="sm" mt={2} c="gray.1">
-                        DU {formatFr(preview.from)} AU {formatFr(preview.to)}
-                      </Text>
-                    </Box>
+                  <DatePickerInput
+                    type="range"
+                    valueFormat="DD MMM YYYY"
+                    value={range}
+                    onChange={(value) => setRange(value as DateRange)}
+                    placeholder="Sélectionner une période"
+                    size="sm"
+                    radius="md"
+                    defaultLevel="year"
+                    popoverProps={{
+                      withinPortal: true,
+                      shadow: 'xl',
+                      radius: 'lg',
+                      styles: {
+                        dropdown: {
+                          background:
+                            'linear-gradient(145deg, rgba(7,14,24,.98), rgba(15,23,42,.96))',
+                          border: '1px solid rgba(148,163,184,.45)',
+                        },
+                      },
+                    }}
+                    styles={{
+                      input: {
+                        background: 'rgba(15,23,42,.9)',
+                        borderColor: 'rgba(56,189,248,.6)',
+                        borderWidth: 1,
+                        borderStyle: 'solid',
+                        color: '#e5e7eb',
+                      },
+                      day: {
+                        '&[dataSelected]': {
+                          background:
+                            'linear-gradient(135deg, rgba(56,189,248,.8), rgba(129,140,248,.9))',
+                          color: 'white',
+                        },
+                        '&[dataInRange]': {
+                          background: 'rgba(56,189,248,.15)',
+                        },
+                        '&[dataWeekend]': {
+                          color: '#f97373',
+                        },
+                      },
+                      weekday: {
+                        color: '#9ca3af',
+                        fontWeight: 500,
+                      },
+                      month: {
+                        color: '#e5e7eb',
+                        fontWeight: 600,
+                      },
+                    }}
+                  />
 
-                    <Divider my="sm" color="rgba(55,65,81,0.8)" />
-
-                    <Group justify="space-between" align="center">
-                      <Text size="sm" c="gray.1">
-                        Période effective :{' '}
-                        <strong>
-                          du {formatFr(preview.from)} au {formatFr(preview.to)}
-                        </strong>
+                  <Checkbox
+                    checked={detailed}
+                    onChange={(event) => setDetailed(event.currentTarget.checked)}
+                    label={
+                      <Text size="sm" c="ocean.4">
+                        Afficher les étapes
                       </Text>
-                      <Text size="sm" fw={600} c="gray.0">
-                        Total : {preview.totalSteps} étapes,{' '}
-                        {preview.totalKm.toLocaleString('fr-FR', {
-                          minimumFractionDigits: 1,
-                          maximumFractionDigits: 1,
-                        })}{' '}
-                        km
-                      </Text>
-                    </Group>
+                    }
+                    size="sm"
+                    styles={{
+                      input: {
+                        background: 'rgba(15,23,42,.9)',
+                        borderColor: 'rgba(56,189,248,.6)',
+                        borderWidth: 1,
+                        borderStyle: 'solid',
+                      },
+                      icon: {
+                        color: '#0ea5e9',
+                      },
+                      label: {
+                        color: '#e5e7eb',
+                      },
+                    }}
+                  />
+                </Stack>
+              </Group>
 
-                    <Box mt="sm">
-                      {!effectiveDetailed && renderSummaryTable(preview)}
-                      {effectiveDetailed && renderDetailedTable(preview)}
-                    </Box>
-                  </Stack>
-                </Paper>
-              )}
+              <Group justify="flex-end">
+                <Button size="sm" radius="md" component="a" href={pdfHref} disabled={!canDownload}>
+                  Télécharger en PDF
+                </Button>
+              </Group>
             </Stack>
           </Paper>
 
-          <Group justify="flex-end">
-            <Button size="sm" radius="md" component="a" href={pdfHref} disabled={!canDownload}>
-              Télécharger en PDF
-            </Button>
-          </Group>
+          {/* Aperçu – uniquement en version "large" (desktop/tablette landscape) */}
+          {!isMobile && (
+            <>
+              <Paper
+                withBorder
+                radius="lg"
+                p="lg"
+                bg="#020617"
+                styles={{
+                  root: {
+                    borderColor: 'rgba(148,163,184,0.45)',
+                  },
+                }}
+              >
+                <Stack gap="md">
+                  {error && (
+                    <Text size="sm" c="red.4">
+                      {error}
+                    </Text>
+                  )}
+
+                  {!error && !hasData && !loading && (
+                    <Text size="sm" c="gray.3" ta="center">
+                      Aucun trajet à afficher pour le moment. Sélectionnez une période pour générer
+                      l’aperçu.
+                    </Text>
+                  )}
+
+                  {!error && loading && (
+                    <Text size="sm" c="gray.3" ta="center">
+                      Mise à jour de l’aperçu...
+                    </Text>
+                  )}
+
+                  {hasData && preview && (
+                    <Paper
+                      shadow="sm"
+                      radius="md"
+                      p="xl"
+                      withBorder
+                      bg="#020617"
+                      styles={{
+                        root: {
+                          borderColor: 'rgba(148,163,184,0.45)',
+                        },
+                      }}
+                    >
+                      <Stack gap="md">
+                        {/* En-tête type PDF */}
+                        <Box ta="center">
+                          <img
+                            src="/logo.svg"
+                            alt="RoadMapp"
+                            style={{ height: 60, marginBottom: 16 }}
+                          />
+                          <Text fw={700} size="xl" c="gray.0">
+                            ROADMAPP
+                          </Text>
+                          <Text fw={700} size="sm" mt={4} c="gray.0">
+                            HISTORIQUE DES TRAJETS
+                          </Text>
+                          <Text size="sm" mt={2} c="gray.1">
+                            DU {formatFr(preview.from)} AU {formatFr(preview.to)}
+                          </Text>
+                        </Box>
+
+                        <Divider my="sm" color="rgba(55,65,81,0.8)" />
+
+                        <Group justify="space-between" align="center">
+                          <Text size="sm" c="gray.1">
+                            Période effective :{' '}
+                            <strong>
+                              du {formatFr(preview.from)} au {formatFr(preview.to)}
+                            </strong>
+                          </Text>
+                          <Text size="sm" fw={600} c="gray.0">
+                            Total : {preview.totalSteps} étapes,{' '}
+                            {preview.totalKm.toLocaleString('fr-FR', {
+                              minimumFractionDigits: 1,
+                              maximumFractionDigits: 1,
+                            })}{' '}
+                            km
+                          </Text>
+                        </Group>
+
+                        <Box mt="sm">
+                          {!effectiveDetailed && renderSummaryTable(preview)}
+                          {effectiveDetailed && renderDetailedTable(preview)}
+                        </Box>
+                      </Stack>
+                    </Paper>
+                  )}
+                </Stack>
+              </Paper>
+
+              <Group justify="flex-end">
+                <Button size="sm" radius="md" component="a" href={pdfHref} disabled={!canDownload}>
+                  Télécharger en PDF
+                </Button>
+              </Group>
+            </>
+          )}
         </Stack>
       </Container>
     </>
