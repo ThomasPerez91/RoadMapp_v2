@@ -1,4 +1,5 @@
-import { Flex, Group, Title } from '@mantine/core'
+// inertia/components/links/user_navbar_links.tsx
+import { Flex, Group, Text } from '@mantine/core'
 import { InternalLink } from './internal_link'
 import authUser from '~/hooks/auth'
 import { LuLayoutDashboard } from 'react-icons/lu'
@@ -8,70 +9,74 @@ import { RiMapPin2Line } from 'react-icons/ri'
 
 interface UserNavbarLinksProps {
   isMobile?: boolean
+  onLinkClick?: () => void
 }
 
-export const UserNavbarLinks = ({ isMobile }: UserNavbarLinksProps) => {
+export const UserNavbarLinks = ({ isMobile, onLinkClick }: UserNavbarLinksProps) => {
   const user = authUser()
-  const dashboardIcon = <LuLayoutDashboard size={18} />
-  const addressBookIcon = <PiAddressBookBold size={18} />
-  const travelIcon = <RiMapPin2Line size={18} />
-  const documentIcon = <HiOutlineDocumentText size={18} />
+
+  if (!user.isAuthenticated) return null
+
+  // Tailles adaptées
+  const iconSize = isMobile ? 24 : 18
+  const textSize = isMobile ? 'lg' : 'sm'
+  const rowGap = isMobile ? 'lg' : 'xl'
+  const itemGap = isMobile ? 'sm' : 'xs'
+
+  const dashboardIcon = <LuLayoutDashboard size={iconSize} />
+  const addressBookIcon = <PiAddressBookBold size={iconSize} />
+  const travelIcon = <RiMapPin2Line size={iconSize} />
+  const documentIcon = <HiOutlineDocumentText size={iconSize} />
+
   const direction = isMobile ? 'column' : 'row'
-  const align = isMobile ? 'left' : 'center'
+  const align: 'flex-start' | 'center' = isMobile ? 'flex-start' : 'center'
+
+  const handleClick = () => {
+    onLinkClick?.()
+  }
+
+  const linkTextStyle = {
+    color: 'var(--mantine-color-sand-12)',
+    fontWeight: 600,
+  } as const
 
   return (
-    <>
-      {user.isAuthenticated && (
-        <Flex direction={direction} gap="xl" align={align} wrap="nowrap">
-          <InternalLink
-            route="/dashboard"
-            children={
-              <Group gap="xs" align="center">
-                {dashboardIcon}
-                <Title order={5} style={{ color: 'var(--mantine-color-sand-12)', fontWeight: 600 }}>
-                  Dashboard
-                </Title>
-              </Group>
-            }
-          />
+    <Flex direction={direction} gap={rowGap} align={align} wrap="nowrap">
+      <InternalLink route="/dashboard" onClick={handleClick}>
+        <Group gap={itemGap} align="center">
+          {dashboardIcon}
+          <Text size={textSize} style={linkTextStyle}>
+            Dashboard
+          </Text>
+        </Group>
+      </InternalLink>
 
-          <InternalLink
-            route="/addresses"
-            children={
-              <Group gap="xs" align="center">
-                {addressBookIcon}
-                <Title order={5} style={{ color: 'var(--mantine-color-sand-12)', fontWeight: 600 }}>
-                  Carnet d'adresses
-                </Title>
-              </Group>
-            }
-          />
+      <InternalLink route="/addresses" onClick={handleClick}>
+        <Group gap={itemGap} align="center">
+          {addressBookIcon}
+          <Text size={textSize} style={linkTextStyle}>
+            Carnet d&apos;adresses
+          </Text>
+        </Group>
+      </InternalLink>
 
-          <InternalLink
-            route="/travels"
-            children={
-              <Group gap="xs" align="center">
-                {travelIcon}
-                <Title order={5} style={{ color: 'var(--mantine-color-sand-12)', fontWeight: 600 }}>
-                  Trajets
-                </Title>
-              </Group>
-            }
-          />
+      <InternalLink route="/travels" onClick={handleClick}>
+        <Group gap={itemGap} align="center">
+          {travelIcon}
+          <Text size={textSize} style={linkTextStyle}>
+            Trajets
+          </Text>
+        </Group>
+      </InternalLink>
 
-          <InternalLink
-            route="/travels/template-export"
-            children={
-              <Group gap="xs" align="center">
-                {documentIcon}
-                <Title order={5} style={{ color: 'var(--mantine-color-sand-12)', fontWeight: 600 }}>
-                  Justificatifs
-                </Title>
-              </Group>
-            }
-          />
-        </Flex>
-      )}
-    </>
+      <InternalLink route="/travels/template-export" onClick={handleClick}>
+        <Group gap={itemGap} align="center">
+          {documentIcon}
+          <Text size={textSize} style={linkTextStyle}>
+            Justificatifs
+          </Text>
+        </Group>
+      </InternalLink>
+    </Flex>
   )
 }
